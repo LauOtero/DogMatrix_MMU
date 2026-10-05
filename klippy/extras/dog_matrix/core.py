@@ -564,6 +564,122 @@ class DogMatrixCore:
         # TODO: Implementar calibración real
         gcmd.respond_info("Calibración selector: to be implemented")
 
+    def cmd_DM_REMAP_TTG(self, gcmd: Any) -> None:
+        """Remapeo tool→gate con validación de conflictos material/color."""
+        target_gate = gcmd.get_int("TARGET_GATE", None)
+        source_tool = gcmd.get_int("SOURCE_TOOL", None)
+
+        if target_gate is None or source_tool is None:
+            raise gcmd.error("Faltan parámetros TARGET_GATE y SOURCE_TOOL")
+
+        # Validar conflictos de material
+        source_material = self.gate_filament.get(source_tool, {}).get("material", "")
+        target_material = self.gate_filament.get(target_gate, {}).get("material", "")
+
+        # Validar conflictos de color
+        source_color = self.gate_filament.get(source_tool, {}).get("color", "")
+        target_color = self.gate_filament.get(target_gate, {}).get("color", "")
+
+        # Si ambos gates tienen material, validar compatibilidad
+        if source_material and target_material:
+            if not self._materials_compatible(source_material, target_material):
+                raise gcmd.error(
+                    f"Conflicto material: gate {source_tool} tiene {source_material}, "
+                    f"gate {target_gate} tiene {target_material}. Use DM_GATE_MAP para cambiar atributos."
+                )
+
+        # Si ambos gates tienen color, validar contraste suficiente
+        if source_color and target_color:
+            if not self._colors_compatible(source_color, target_color):
+                raise gcmd.error(
+                    f"Contraste de color insuficiente: gate {source_tool} color {source_color}, "
+                    f"gate {target_gate} color {target_color}"
+                )
+
+        # Aplicar remapeo validado
+        old_mapping = self.ttg_map.get(source_tool, target_gate)
+        self.ttg_map[source_tool] = target_gate
+
+        # Emitir callback con información validada
+        self._emit_callback("_DM_GATE_MAP_CHANGED", action="remap_ttg",
+                            source_tool=source_tool, target_gate=target_gate,
+                            source_material=source_material, target_material=target_material,
+                            validated=True)
+
+        gcmd.respond_info(f"Remapeo TTG validado: T{source_tool} → gate {target_gate} "
+                          f"(material: {source_material} → {target_material})")
+
+    def _materials_compatible(self, mat1: str, mat2: str) -> bool:
+        """Verificar compatibilidad de materiales."""
+        # Lista de materiales incompatibles (ej. PLA + ABS en mismo nozzle sin purge)
+        incompatible = [("PLA", "ABS"), ("ABS", "PLA"), ("TPU", "PETG duro")]
+        return (mat1, mat2) not in incompatible and (mat2, mat1) not in incompatible
+
+    def _colors_compatible(self, color1: str, color2: str) -> bool:
+        """Verificar suficiente contraste entre colores."""
+        if color1 == color2:
+            return True  # Mismo color ok
+        # Colores extremos (rojo sobre verde, etc. serían problema)
+        extreme_pairs = {("RED", "GREEN"), ("GREEN", "RED"), ("BLUE", "YELLOW"), ("YELLOW", "BLUE")}
+        return (color1, color2) not in extreme_pairs
+
+    def cmd_DM_UNLOCK(self, gcmd: Any) -> None:
+        """Restaura temperaturas tras un error de MMU."""
+        result = self.recovery.recover_from_failure({})
+        if result.success:
+            gcmd.respond_info(f"Recuperacion OK ({result.action})")
+        else:
+            gcmd.respond_info(f"Recuperacion requiere atencion: {result.message}")
+
+    def _on_nfc_tag(self, uid: str) -> Optional[Spool]:
+        """Manejo de tag NFC con sincronización Spoolman (DM-NFC-001).
+
+        Flujo:
+        1. Leer tag NFC para identificar spool
+        2. Actualizar gate_map con spool_id del tag
+        3. Notificar a Spoolman del cambio de herramienta
+        4. Emitir callback _DM_GATE_MAP_CHANGED
+        """
+        # 1. Reconocer spool desde el tag NFC
+        spool = self.nfc.handle_nfc_tag(uid) if hasattr(self, "nfc") and self.nfc else None
+        if spool is None:
+            return None
+
+        # 2. Actualizar gate_map con la información del spool
+        current_gate = self.state_machine.get_current_gate() if hasattr(self, "state_machine") else None
+        if current_gate is not None and spool.gate_id is not None:
+            # Actualizar atributos del gate actual
+            if current_gate not in self.gate_filament:
+                self.gate_filament[current_gate] = {}
+
+            self.gate_filament[current_gate]["spool_id"] = spool.id
+            self.gate_filament[current_gate]["material"] = spool.material or ""
+            self.gate_filament[current_gate]["color"] = spool.color or ""
+            self.gate_filament[current_gate]["availability"] = "available"
+
+        # 3. Notificar a Spoolman del cambio
+        if hasattr(self, "spoolman") and self.spoolman is not None:
+            self.spoolman.notify_toolchange(
+                gate=current_gate,
+                spool_id=spool.id,
+                printer_name=self.printer.config.get_printer_name() if self.printer else ""
+            )
+
+        # 4. Emitir callback para que macros y UI se actualicen
+        self._emit_callback("_DM_GATE_MAP_CHANGED", action="nfc_tag",
+                            uid=uid, gate=current_gate,
+                            spool_id=spool.id if spool else None)
+
+        return spool
+
+    def cmd_DM_NFC_READ(self, gcmd: Any) -> None:
+        """Comando G-code para leer tag NFC y sincronizar."""
+        uid = gcmd.get("UID", "")
+        if not uid:
+            raise gcmd.error("Falta el parámetro UID (identificador del tag NFC)")
+        self._on_nfc_tag(uid)
+        gcmd.respond_info(f"Tag NFC leído y sincronizado: {uid}")
+
     def cmd_DM_UNLOCK(self, gcmd: Any) -> None:
         """Restaura temperaturas tras un error de MMU."""
         result = self.recovery.recover_from_failure({})

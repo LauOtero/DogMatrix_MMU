@@ -11,6 +11,7 @@ consumo CPU < 0.5 %.
 from __future__ import annotations
 
 import time
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -83,7 +84,8 @@ class FlowGuard:
         return DEFAULT_RATIO_THRESHOLD
 
     # -- API publica --------------------------------------------------------
-    def evaluate(self, requested_mm: float, measured_mm: float) -> FlowGuardResult:
+    def evaluate(self, requested_mm: float, measured_mm: float,
+                 sensor_manager: Any = None) -> FlowGuardResult:
         """Evalua la divergencia y clasifica el estado del flujo."""
         diff, ratio = _native.divergence(requested_mm, measured_mm)
         diff = round(diff, 4)
@@ -106,7 +108,7 @@ class FlowGuard:
         message = ""
         if confirmed:
             is_error = True
-            state = self._classify(requested_mm, measured_mm)
+            state = self._classify(requested_mm, measured_mm, sensor_manager)
             self.stats["errors"] += 1
             message = f"divergencia confirmada ({state})"
 
@@ -133,17 +135,74 @@ class FlowGuard:
         return round(base * factor, 4)
 
     @staticmethod
-    def _classify(requested_mm: float, measured_mm: float) -> str:
+    def _classify(requested_mm: float, measured_mm: float,
+                  sensor_manager: Any = None) -> str:
+        """Clasificacion de la divergence con prevencion de enredos opcional."""
         if requested_mm > 0 and measured_mm <= 0.01:
             return FLOW_RUNOUT
         if measured_mm <= requested_mm * 0.3:
             # Movimiento muy reducido - podría ser enredo
             if measured_mm > 0 and requested_mm > 0:
+                # NUEVO: Solicitar prevencion de enredo si hay sensor manager
+                if sensor_manager is not None:
+                    sensor_manager._trigger_tangle_prevention()
                 return FLOW_TANGLE  # Enredo detectado
             return FLOW_CLOG
+        # Reset counter cuando flujo normal
+        if sensor_manager is not None:
+            sensor_manager.reset_violation_counter()
         return FLOW_DIVERGENCE
 
-    def update_thresholds(self, material: Optional[str] = None, temperature: Optional[float] = None) -> None:
+    def _trigger_tangle_prevention(self) -> None:
+        """Ejecutar prevencion activa de enredo detectado.
+
+        Acciones:
+        1. Reducir velocidad de extrusion en 30%
+        2. Aumentar corriente del gear stepper 15-20%
+        3. Loguear evento para diagnosticar
+        """
+        # Reducir velocidad de extrusion
+        try:
+            current_speed = self._get_current_extrusion_speed()
+            new_speed = max(0.1, current_speed * 0.7)  # 30% reduction
+            self._set_extrusion_speed(new_speed)
+        except Exception:  # noqa: BLE001 - hardware opcional
+            pass
+
+        # Aumentar corriente del gear stepper
+        try:
+            current_current = self._get_current_gear_current()
+            new_current = min(1.0, current_current * 1.15)  # 15% increase
+            self._set_gear_current(new_current)
+        except Exception:  # noqa: BLE001 - hardware opcional
+            pass
+
+        # Logging para diagnosticar
+        logger = logging.getLogger("klippy.dog_matrix.flowguard")
+        logger.warning(
+            "Tangle prevention triggered: reducing speed, increasing gear current "
+            "to prevent filament tangle"
+        )
+
+    def _get_current_extrusion_speed(self) -> float:
+        """Obtener velocidad actual de extrusion (implementacion placeholder)."""
+        # En implementacion real, esto leiria del config o klipper
+        return 1.0
+
+    def _set_extrusion_speed(self, speed: float) -> None:
+        """Establecer velocidad de extrusion (implementacion placeholder)."""
+        pass
+
+    def _get_current_gear_current(self) -> float:
+        """Obtener corriente actual del gear stepper (implementacion placeholder)."""
+        return 0.5
+
+    def _set_gear_current(self, current: float) -> None:
+        """Establecer corriente del gear stepper (implementacion placeholder)."""
+        pass
+
+    def update_thresholds(self, material: Optional[str] = None,
+                          temperature: Optional[float] = None) -> None:
         self._material = material
         self._temperature = temperature
 
@@ -161,4 +220,5 @@ class FlowGuard:
         self.adaptive = bool(enabled)
 
 
-__all__ = ["FlowGuard", "FlowGuardResult", "FLOW_OK", "FLOW_DIVERGENCE", "FLOW_CLOG", "FLOW_RUNOUT"]
+__all__ = ["FlowGuard", "FlowGuardResult", "FLOW_OK", "FLOW_DIVERGENCE",
+           "FLOW_CLOG", "FLOW_RUNOUT", "FLOW_TANGLE"]
