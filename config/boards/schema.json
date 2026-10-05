@@ -1,0 +1,76 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "dog_matrix.board.schema.v1.json",
+    "title": "Dog Matrix MMU board definition",
+    "description": "Definicion fisica de placa versionada (config/boards/<id>.yaml).",
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["schema_version", "board_id", "display_name", "topology", "mcu"],
+    "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "board_id": { "type": "string", "pattern": "^[a-z0-9]+(_[a-z0-9]+)*$" },
+        "display_name": { "type": "string" },
+        "happy_hare_board_type": { "type": "string" },
+        "topology": { "enum": ["selector", "gear_per_gate", "both"] },
+        "coils_per_unit": { "type": "integer", "minimum": 1 },
+        "max_gates": { "type": "integer", "minimum": 1 },
+        "dual_gate_sensors": { "type": "boolean" },
+        "i2c_bus": { "type": "string" },
+        "source_url": { "type": "string" },
+        "notes": { "type": "string" },
+        "mcu": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+                "name": { "type": "string" },
+                "transport": { "enum": ["usb", "can", "uart", "virtual"] },
+                "arch": { "type": "string" }
+            }
+        },
+        "drivers": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "properties": {
+                    "step": { "type": "string" },
+                    "dir": { "type": "string" },
+                    "enable": { "type": "string" },
+                    "uart": { "type": "string" },
+                    "diag": { "type": "string" },
+                    "uart_address": { "type": "integer" }
+                }
+            }
+        },
+        "pins": {
+            "type": "object",
+            "additionalProperties": {
+                "oneOf": [
+                    { "type": "string" },
+                    { "type": "array", "items": { "type": "string" } }
+                ]
+            }
+        },
+        "shared_pins": {
+            "type": "array",
+            "items": { "type": "string" }
+        },
+        "reserved_pins": { "type": "object" },
+        "reserved": { "type": "object" },
+        "capabilities": {
+            "type": "object",
+            "additionalProperties": { "type": "boolean" }
+        },
+        "i2c": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "bus": { "type": "string" },
+                "scl": { "type": "string" },
+                "sda": { "type": "string" },
+                "devices": { "type": "array", "items": { "type": "string" } }
+            }
+        }
+    }
+}

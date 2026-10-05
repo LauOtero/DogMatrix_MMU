@@ -1,0 +1,11 @@
+{
+  "config_hash": "sha256:77644b797b8c4b6b0bb13ac4aaf6a2c04dea587827b526e8a8b2866785583995",
+  "files": {
+    "dog_matrix_generated.cfg": "sha256:733ae980bc8639355334a4b80970f281202c218aa07499b13e6d1732d7371262",
+    "dog_matrix_macros.cfg": "sha256:6957547addb602b2236348db6140b5b15cc420631a1a065d9909b44364d7633b",
+    "dog_matrix_profile.json": "sha256:70d28316f71bab22a5d6de2df73a0e0b13f6f1e87aae30b9346df338c7c57342",
+    "moonraker_dog_matrix.conf": "sha256:1e838dd2b5fb6fa2435f238b3d4bce10305fb41ebfcbee469fd13b402877d5bb"
+  },
+  "generated_at": "2026-01-01T00:00:00Z",
+  "profile_id": "dog_matrix.angry_beaver.v1"
+}

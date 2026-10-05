@@ -8,6 +8,13 @@
 # Generado: ${generated_at}
 # Hash:     ${config_hash}
 
+# Layout de maquina multi-unidad (vacio en single-unit).
+${machine_block}
+
+# Alias uniformes de pines (namespace MMU_*/DM_*) para la placa seleccionada.
+# Vacio si no se ha elegido placa: en ese caso [dm_pins] usa pines directos.
+${board_pins_block}
+
 [dm_pins]
 ${pins_block}
 

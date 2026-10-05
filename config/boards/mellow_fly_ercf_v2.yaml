@@ -1,0 +1,63 @@
+# Dog Matrix MMU - Definicion de placa
+# Mellow FLY-ERCF V2 (RP2040).
+#
+# Fuente: https://mellow.klipper.cn/en/docs/category/fly-ercf-v2
+#         Defaults Happy Hare BOARD_TYPE_MELLOW_EASY_BRD_CAN_2
+schema_version: 1
+board_id: mellow_fly_ercf_v2
+display_name: Mellow FLY-ERCF V2
+happy_hare_board_type: MELLOW_EASY_BRD_CAN_2
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: rp2040
+source_url: https://mellow.klipper.cn/en/docs/category/fly-ercf-v2
+drivers:
+  - step: gpio4
+    dir: gpio3
+    enable: "!gpio5"
+    uart: gpio2
+    diag: gpio20
+  - step: gpio7
+    dir: gpio8
+    enable: "!gpio6"
+    uart: gpio9
+pins:
+  selector_endstop: "^gpio20"
+  encoder: "^gpio15"
+  shared_exit: "^gpio25"
+  servo: gpio21
+  neopixel: gpio14
+  pre_gate:
+    - gpio24
+    - gpio22
+    - gpio25
+    - gpio23
+    - gpio13
+    - gpio26
+    - gpio12
+    - gpio27
+    - gpio11
+    - gpio28
+    - gpio10
+    - gpio29
+shared_pins:
+  - "SEL_DIAG,SEL_ENDSTOP"
+  - "SHARED_EXIT,PRE_GATE_2"
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: true
+  canbus: true
+  i2c: false
+notes: >-
+  V2 comparte SEL_DIAG y SEL_ENDSTOP en gpio20 (conmutable sensorless/sensor) y
+  ofrece 12 entradas de gate. Se conserva la advertencia de terminacion CAN.

@@ -102,6 +102,29 @@ encoder_error_mm: 5
 `dog_matrix_profile.json` es el snapshot del perfil que consume el runtime y el
 validador (`SystemValidator.validate_schema`).
 
+### 3.1 Configuración de pines por placa
+
+Si el perfil declara `hardware.board` (o se pasa `board` al generador), la
+sección anterior se sustituye por alias uniformes y se añade un bloque
+`[board_pins dogmatrix]`:
+
+```ini
+[board_pins dogmatrix]
+mcu: mmu
+aliases:
+  MMU_GEAR_STEP=gpio7
+  DM_GEAR_STEP=gpio7
+  ...
+
+[dm_pins]
+gear_step: DM_GEAR_STEP
+...
+```
+
+Los alias `MMU_*` son compatibles con Happy Hare. Consulta
+[PIN_CONFIGURATION.md](PIN_CONFIGURATION.md) para el mapeo por placa, la
+integración de 4 bobinas por unidad y la guía de migración.
+
 ---
 
 ## 4. Componente Moonraker

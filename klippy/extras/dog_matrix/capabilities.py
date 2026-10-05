@@ -269,6 +269,13 @@ class Capabilities:
             "linear",
             "rotary",
             "virtual",
+            "servo",
+            "indexed",
+            "multi_gear",
+            "macro",
+            "linear_mg",
+            "linear_servo",
+            "linear_mg_servo",
         ):
             errors.append("topology.type=selector requiere selector_type valido")
         limits = document.get("limits") or {}

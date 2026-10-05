@@ -1,0 +1,11 @@
+{
+  "config_hash": "sha256:62e3b1073d1eaecd8e0493585d6427f6e85d149d73e2918ab6afba3ead6e6d89",
+  "files": {
+    "dog_matrix_generated.cfg": "sha256:88363f9bfb9794100eb2a6cb1c66235c02961cd2aafbc5fa8a119a831f617ac3",
+    "dog_matrix_macros.cfg": "sha256:c2b7f6bc2e0dfe196ba4ab58fc08e8b673ef2f6a01f2b58359dcfbbfcb33ccb5",
+    "dog_matrix_profile.json": "sha256:787e0dafe8cc1bc9246724de13a21921d757f2d2972a452b56404d1009c497d0",
+    "moonraker_dog_matrix.conf": "sha256:1e838dd2b5fb6fa2435f238b3d4bce10305fb41ebfcbee469fd13b402877d5bb"
+  },
+  "generated_at": "2026-01-01T00:00:00Z",
+  "profile_id": "dog_matrix.quattrobox.v1"
+}

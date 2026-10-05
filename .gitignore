@@ -18,3 +18,5 @@ config/generated/*.json
 *.dm_snapshot
 evidence/*.zip
 docs/funcionalidades_faltantes.md
+docs/Happy-Hare-Doc_v4
+docs/Happy-Hare_v4

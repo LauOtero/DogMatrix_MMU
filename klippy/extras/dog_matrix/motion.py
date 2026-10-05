@@ -7,10 +7,26 @@ La interpolacion final la realiza el MCU de Klipper.
 
 from __future__ import annotations
 
+import json
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from . import _native
+
+
+def _cfg_get(config: Any, key: str, default: Any) -> Any:
+    """Lee un valor de un ConfigWrapper o de un dict de forma segura."""
+    if config is None:
+        return default
+    if isinstance(config, dict):
+        return config.get(key, default)
+    getter = getattr(config, "get", None)
+    if callable(getter):
+        try:
+            return getter(key, default)
+        except TypeError:
+            return default
+    return default
 
 
 class GearError(Exception):
@@ -28,6 +44,25 @@ class Motion:
         self.last_plan: Dict[str, float] = {}
         self.moves = 0
         self._watchdog_synced = False
+        # Parking por operacion + z-hop (paridad Happy Hare Toolchange-Movement).
+        self.z_hop_mm: float = float(_cfg_get(config, "z_hop_mm", 1.0))
+        self.z_hop_speed_mm_s: float = float(_cfg_get(config, "z_hop_speed_mm_s", 20.0))
+        self.park_positions: Dict[str, List[float]] = self._load_park_positions(config)
+
+    @staticmethod
+    def _load_park_positions(config: Any) -> Dict[str, List[float]]:
+        raw = _cfg_get(config, "park_positions", None)
+        if isinstance(raw, str):
+            try:
+                raw = json.loads(raw)
+            except (ValueError, TypeError):
+                raw = None
+        result: Dict[str, List[float]] = {}
+        if isinstance(raw, dict):
+            for key, value in raw.items():
+                if isinstance(value, (list, tuple)) and len(value) >= 2:
+                    result[str(key)] = [float(v) for v in value]
+        return result
 
     # -- Utilidades Klipper -------------------------------------------------
     def _gcode(self) -> Any:
@@ -80,9 +115,57 @@ class Motion:
         """
         return True
 
-    def park_toolhead(self) -> bool:
+    def park_toolhead(self, operation: Optional[str] = None) -> bool:
+        """Parquea el toolhead en la posicion configurada para la operacion.
+
+        Si no hay posicion configurada, recurre a la macro estandar ``G27``.
+        """
+        position = None
+        if operation and operation in self.park_positions:
+            position = self.park_positions[operation]
+        elif "default" in self.park_positions:
+            position = self.park_positions["default"]
+        if position is not None:
+            x, y = position[0], position[1]
+            parts = [f"G1 X{x:.3f} Y{y:.3f}"]
+            if len(position) >= 3:
+                parts.append(f"Z{position[2]:.3f}")
+            parts.append(f"F{max(1.0, self.z_hop_speed_mm_s) * 60:.2f}")
+            try:
+                self._run(" ".join(parts))
+                return True
+            except GearError:
+                return False
         try:
             self._run("G27")  # park toolhead (macro estandar)
+            return True
+        except GearError:
+            return False
+
+    def z_hop(self, height_mm: Optional[float] = None, speed_mm_s: Optional[float] = None) -> bool:
+        """Realiza un z-hop (subida) relativo antes de una operacion."""
+        height = self.z_hop_mm if height_mm is None else float(height_mm)
+        speed = self.z_hop_speed_mm_s if speed_mm_s is None else float(speed_mm_s)
+        if height <= 0:
+            return True
+        try:
+            self._run(f"G91")
+            self._run(f"G1 Z{height:.3f} F{max(1.0, speed) * 60:.2f}")
+            self._run("G90")
+            return True
+        except GearError:
+            return False
+
+    def z_hop_down(self, height_mm: Optional[float] = None, speed_mm_s: Optional[float] = None) -> bool:
+        """Deshace un z-hop previo (bajada relativa)."""
+        height = self.z_hop_mm if height_mm is None else float(height_mm)
+        speed = self.z_hop_speed_mm_s if speed_mm_s is None else float(speed_mm_s)
+        if height <= 0:
+            return True
+        try:
+            self._run(f"G91")
+            self._run(f"G1 Z-{height:.3f} F{max(1.0, speed) * 60:.2f}")
+            self._run("G90")
             return True
         except GearError:
             return False
@@ -96,6 +179,8 @@ class Motion:
             "last_plan": dict(self.last_plan),
             "s_curve": self.s_curve,
             "jerk_limit": self.jerk_limit,
+            "z_hop_mm": self.z_hop_mm,
+            "park_positions": dict(self.park_positions),
             "native": _native.native_available(),
             "timestamp": time.time(),
         }

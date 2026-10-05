@@ -1,0 +1,61 @@
+# Dog Matrix MMU - Definicion de placa
+# FYSETC ERB V1.0 (RP2040).
+#
+# Fuente: https://github.com/FYSETC/FYSETC-ERB
+#         Defaults Happy Hare BOARD_TYPE_ERB_1
+schema_version: 1
+board_id: fysetc_erb_v1
+display_name: FYSETC ERB V1.0
+happy_hare_board_type: ERB_1
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: usb
+  arch: rp2040
+source_url: https://github.com/FYSETC/FYSETC-ERB
+drivers:
+  - step: gpio16
+    dir: "!gpio15"
+    enable: "!gpio14"
+    uart: gpio17
+    diag: gpio19
+  - step: gpio10
+    dir: "!gpio9"
+    enable: "!gpio8"
+    uart: gpio20
+    diag: gpio13
+pins:
+  selector_endstop: "^gpio24"
+  encoder: "^gpio22"
+  shared_exit: "^gpio25"
+  servo: gpio23
+  neopixel: gpio21
+  pre_gate:
+    - gpio0
+    - gpio1
+    - gpio2
+    - gpio3
+    - gpio4
+    - gpio5
+    - gpio6
+    - gpio7
+    - gpio26
+    - gpio27
+    - gpio28
+    - gpio29
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: true
+  canbus: false
+  i2c: false
+notes: >-
+  Errata de silkscreen V1: GPIO24 y GPIO25 estan intercambiados en el marcado.
+  Entrada max. 28 V; RGB y servo a 5 V.

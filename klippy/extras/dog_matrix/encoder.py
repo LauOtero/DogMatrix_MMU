@@ -32,6 +32,10 @@ class Encoder:
         self._last_position = 0.0
         self._velocity = 0.0
         self.reads = 0
+        # Endstop virtual + correccion de bowden (paridad Happy Hare).
+        self.endstop_threshold_mm = self._get_float(config, "encoder_endstop_mm", 0.0)
+        self.bowden_correction = self._get_float(config, "bowden_correction_factor", 1.0)
+        self._expected_start = 0.0
 
     @staticmethod
     def _get_float(config: Any, key: str, default: float) -> float:
@@ -100,6 +104,45 @@ class Encoder:
     def set_filter_alpha(self, alpha: float) -> None:
         self.filter_alpha = min(1.0, max(0.0, float(alpha)))
 
+    # -- Endstop virtual y validacion de movimiento ------------------------
+    def expect_move(self, distance_mm: float = 0.0) -> None:
+        """Marca el inicio de un movimiento para validarlo despues."""
+        self._expected_start = self.read_position()
+
+    def check_move(self, distance_mm: float) -> float:
+        """Distancia neta medida desde ``expect_move`` (mm, positiva)."""
+        measured = self.read_position() - self._expected_start
+        return round(abs(measured), 4)
+
+    def move_validation(self, requested_mm: float, tolerance_mm: float = 1.0) -> bool:
+        """True si el movimiento medido es coherente con el solicitado."""
+        measured = self.check_move(requested_mm)
+        if requested_mm <= 0:
+            return True
+        return abs(measured - requested_mm) <= max(0.0, tolerance_mm)
+
+    def virtual_endstop_triggered(self, threshold_mm: Optional[float] = None) -> bool:
+        """Endstop virtual: True cuando la posicion alcanza el umbral."""
+        limit = self.endstop_threshold_mm if threshold_mm is None else float(threshold_mm)
+        return self.read_position() >= limit
+
+    # -- Correccion de bowden ----------------------------------------------
+    def set_bowden_correction(self, factor: float) -> None:
+        """Factor de correccion de longitud efectiva del bowden (> 0)."""
+        self.bowden_correction = max(0.01, float(factor))
+
+    def apply_bowden_correction(self, distance_mm: float) -> float:
+        """Aplica la correccion de bowden a una distancia solicitada."""
+        return float(distance_mm) * self.bowden_correction
+
+    # -- Calibracion --------------------------------------------------------
+    def derive_resolution(self, distance_mm: float, counts: int) -> Optional[float]:
+        """Deriva los mm por pulso a partir de una distancia y conteo medidos."""
+        if counts <= 0 or distance_mm <= 0:
+            return None
+        self.resolution_mm = float(distance_mm) / float(counts)
+        return self.resolution_mm
+
     def get_status(self) -> dict:
         return {
             "position_mm": round(self._filtered_position, 4),
@@ -107,6 +150,8 @@ class Encoder:
             "raw_counts": self._raw_counts,
             "resolution_mm": self.resolution_mm,
             "filter_alpha": self.filter_alpha,
+            "endstop_threshold_mm": self.endstop_threshold_mm,
+            "bowden_correction": self.bowden_correction,
             "native": _native.native_available(),
         }
 

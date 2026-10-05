@@ -1,0 +1,63 @@
+# Dog Matrix MMU - Definicion de placa
+# FYSETC ERB V2.0 (RP2040, CANbus, 12x IO de gate sensors, termistor).
+#
+# Fuente: https://github.com/FYSETC/FYSETC-ERB
+#         Defaults Happy Hare BOARD_TYPE_ERB_2
+schema_version: 1
+board_id: fysetc_erb_v2
+display_name: FYSETC ERB V2.0
+happy_hare_board_type: ERB_2
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: rp2040
+source_url: https://github.com/FYSETC/FYSETC-ERB
+drivers:
+  - step: gpio16
+    dir: "!gpio15"
+    enable: "!gpio14"
+    uart: gpio17
+    diag: gpio19
+  - step: gpio10
+    dir: "!gpio9"
+    enable: "!gpio8"
+    uart: gpio11
+    diag: gpio13
+pins:
+  selector_endstop: "^gpio24"
+  encoder: "^gpio22"
+  shared_exit: "^gpio25"
+  servo: gpio23
+  neopixel: gpio21
+  pre_gate:
+    - gpio12
+    - gpio18
+    - gpio2
+    - gpio3
+    - gpio4
+    - gpio5
+    - gpio6
+    - gpio7
+    - gpio26
+    - gpio27
+    - gpio28
+    - gpio29
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: true
+  canbus: true
+  thermistor: true
+  i2c: false
+notes: >-
+  V2 anade CANbus (se recomienda bootloader Katapult), 12 IO para sensores de
+  gate y circuito de termistor. El pin del termistor y los pines CAN no estan
+  documentados en el repositorio; confirmar contra el esquema.

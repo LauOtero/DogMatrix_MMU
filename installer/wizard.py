@@ -36,6 +36,9 @@ class WizardContext:
 
     dest: str = ""
     profile_id: str = "box_turtle"
+    vendor: Optional[str] = None
+    board: Optional[str] = None
+    units: int = 1
     headless: bool = False
     dry_run: bool = False
     generated_at: Optional[str] = None
@@ -115,6 +118,7 @@ class InstallationWizard:
         self.validator = SystemValidator()
         self.rollback = RollbackManager(self.context.dest)
         self._profile: Any = None
+        self._resolved: Any = None
 
     # -- Diagnostico --------------------------------------------------------
     def probe_hardware_environment(self) -> HardwareProbeResult:
@@ -147,6 +151,16 @@ class InstallationWizard:
 
     # -- Perfil -------------------------------------------------------------
     def select_mmu_profile(self, profile_id: Optional[str] = None) -> Any:
+        if self.context.vendor:
+            from .configurator import configuration_profile, headless_configuration
+
+            self._resolved = headless_configuration(
+                self.context.vendor,
+                units=max(1, int(self.context.units)),
+                board=self.context.board,
+            )
+            self._profile = configuration_profile(self._resolved)
+            return self._profile
         extras = project_root() / "klippy" / "extras"
         if str(extras) not in sys.path:
             sys.path.insert(0, str(extras))
@@ -181,12 +195,16 @@ class InstallationWizard:
                 return DeploymentResult(False, error_code=ERR_INVALID_PROFILE, message=str(exc))
 
         generator = ConfigGenerator(generated_at=self.context.generated_at)
-        bundle: ConfigBundle = generator.build_bundle(self._profile)
+        hardware_map: Dict[str, Any] = self._hardware_map()
+        bundle: ConfigBundle = generator.build_bundle(self._profile, hardware_map)
 
         # Validacion estatica antes de escribir.
         schema_result = self.validator.validate_schema(self._profile.raw)
         pins = self._pin_map(bundle.files.get("dog_matrix_generated.cfg", ""))
         conflicts = self.validator.validate_pin_conflicts(pins)
+        plan = generator.resolve_pin_plan(self._profile, hardware_map)
+        if plan is not None:
+            conflicts = conflicts + self.validator.validate_pin_plan(plan)
         if schema_result.errors:
             return DeploymentResult(
                 False, error_code=ERR_INVALID_PROFILE, message="; ".join(schema_result.errors)
@@ -247,6 +265,37 @@ class InstallationWizard:
         return self.rollback.rollback(snapshot_id)
 
     # -- Utilidades ---------------------------------------------------------
+    def _hardware_map(self) -> Dict[str, Any]:
+        """Construye el hardware_map (placa, unidades y layout de maquina)."""
+        hardware_map: Dict[str, Any] = {}
+        board_id = self.context.board or (
+            self._profile.hardware.get("board") if self._profile and self._profile.hardware else None
+        )
+        if board_id:
+            hardware_map["board"] = board_id
+        if self._resolved is not None:
+            hardware_map["units"] = self._resolved.units
+            hardware_map["machine"] = self._resolved.machine
+            return hardware_map
+        units = 1
+        if self._profile is not None and self._profile.topology:
+            units = max(1, int(self._profile.topology.get("units", 1)))
+        hardware_map["units"] = units
+        if units > 1 and self._profile is not None:
+            gates = int(self._profile.gates)
+            per_unit = gates // units if units else gates
+            hardware_map["machine"] = {
+                "vendor": self._profile.profile_id,
+                "units": units,
+                "gates_per_unit": per_unit,
+                "total_gates": gates,
+                "layout": [
+                    {"unit": index, "name": f"unit{index}", "gate_offset": index * per_unit, "gates": per_unit}
+                    for index in range(units)
+                ],
+            }
+        return hardware_map
+
     @staticmethod
     def _pin_map(generated_cfg: str) -> Dict[str, List[str]]:
         """Extrae el mapa pin -> usos desde la seccion [dm_pins] generada."""

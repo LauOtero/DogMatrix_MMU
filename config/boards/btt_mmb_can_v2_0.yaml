@@ -1,0 +1,101 @@
+# Dog Matrix MMU - Definicion de placa
+# BIGTREETECH MMB CAN V2.0 (STM32G0B1RET6, 4 drivers EZ, CAN + USB, rediseno).
+#
+# Fuente: https://github.com/bigtreetech/MMB
+#         https://global.bttwiki.com/MMB%20CAN%20V2.0.html
+#         Firmware/sample-bigtreetech-mmb-canbus-v2.0.cfg
+#
+# Rediseno completo de pines respecto a V1.x. Incluye 2 servos, y 12 IO de
+# expansion en header 2x7 (in_h_0..5 / in_l_0..5). Conector I2C dedicado
+# (bus i2c3, PC0/PC1). CAN en PD0/PD1.
+schema_version: 1
+board_id: btt_mmb_can_v2_0
+display_name: BIGTREETECH MMB CAN V2.0
+happy_hare_board_type: MMB_2_0
+topology: both
+coils_per_unit: 4
+max_gates: 16
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: stm32g0b1
+i2c_bus: i2c3
+i2c:
+  bus: i2c3
+  scl: PC0
+  sda: PC1
+  devices:
+    - humidity_temperature
+    - multiplexer
+    - rfid
+source_url: https://github.com/bigtreetech/MMB
+drivers:
+  - step: PD4
+    dir: PD3
+    enable: "!PD5"
+    uart: PB5
+    diag: PB9
+  - step: PC9
+    dir: PC8
+    enable: "!PD2"
+    uart: PB4
+    diag: PB8
+  - step: PC15
+    dir: PC11
+    enable: "!PC10"
+    uart: PB3
+    diag: PB7
+  - step: PC13
+    dir: PC12
+    enable: "!PC14"
+    uart: PD6
+    diag: PB6
+pins:
+  servo: PA1
+  cut_servo: PA0
+  gate_sensor: "^PC2"
+  neopixel: PC3
+  selector_endstop: "^PA15"
+  i2c_scl: PC0
+  i2c_sda: PC1
+  pre_gate:
+    - PA10
+    - PD9
+    - PD8
+    - PC7
+    - PA9
+    - PB12
+    - PB10
+    - PB1
+    - PC5
+    - PC6
+    - PA8
+    - PB11
+    - PB2
+    - PB0
+    - PC4
+reserved_pins:
+  can_rx: PD0
+  can_tx: PD1
+  usb_dm: PA11
+  usb_dp: PA12
+  endstop_1: PA15
+  endstop_2: PA10
+  endstop_3: PD9
+  endstop_4: PD8
+capabilities:
+  selector: true
+  gear_per_gate: true
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: true
+  led: true
+  canbus: true
+  i2c: true
+notes: >-
+  E/S de los drivers en modo UART (TMC2209) o CS (SPI, bus spi1). DIAG de cada
+  driver es un pin independiente. Alimentacion DC12-60 V. El pre_gate incluye
+  los endstops 2-4 (PA10/PD9/PD8) y los 12 IO del header 2x7; el mapeo exacto
+  sobre el header esta por confirmar contra el esquema.

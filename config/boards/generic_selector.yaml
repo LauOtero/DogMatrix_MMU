@@ -1,0 +1,33 @@
+# Dog Matrix MMU - Arquetipo generico de placa selectora (tipo-A)
+#
+# Para placas no listadas o configuraciones externas (equivalente al
+# "Other"/"Manual" de Happy Hare). El usuario debe completar los pines; el
+# sistema garantiza la coherencia de alias (MMU_*/DM_*) y la deteccion de
+# conflictos en cuanto se declaren.
+schema_version: 1
+board_id: generic_selector
+display_name: Generic Selector Board (tipo-A)
+happy_hare_board_type: OTHER
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+mcu:
+  name: mmu
+  transport: can
+  arch: ""
+source_url: ""
+drivers: []
+pins: {}
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: false
+  canbus: true
+  i2c: false
+notes: >-
+  Arquetipo sin pinout: usar cuando la placa no este listada. Declarar driver de
+  selector (DRIVER0), driver de gear (DRIVER1) y los sensores/perifericos.

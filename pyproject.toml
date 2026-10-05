@@ -47,4 +47,7 @@ line_length = 88
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+addopts = "-q -p no:cacheprovider --strict-markers"
+markers = [
+    "slow: pruebas de mayor coste (soak e integracion de CLI/generacion); desmarcables con -m 'not slow'",
+]

@@ -1,12 +1,39 @@
-"""Pruebas de encoder, sensores y selector."""
+"""Pruebas de encoder, sensores y selector.
+
+Los tests de debounce usan un reloj controlado (``monkeypatch`` sobre
+``dog_matrix.sensors.time.monotonic``) para eliminar ``sleep`` y hacer la
+verificacion determinista y mas rapida.
+"""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from dog_matrix.encoder import Encoder
 from dog_matrix.sensors import MAX_DEBOUNCE_MS, SensorManager
 from dog_matrix.selector import LinearSelector, RotarySelector, Selector, VirtualSelector
+
+
+class _Clock:
+    """Reloj monotono controlable para tests deterministas."""
+
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        return self.t
+
+    def advance(self, seconds: float) -> None:
+        self.t += seconds
+
+
+@pytest.fixture()
+def clock(monkeypatch):
+    fake = _Clock()
+    monkeypatch.setattr("dog_matrix.sensors.time.monotonic", fake)
+    return fake
 
 
 # --- Encoder ----------------------------------------------------------------
@@ -35,7 +62,7 @@ def test_encoder_filter_alpha_bounds():
 
 
 # --- Sensores ---------------------------------------------------------------
-def test_sensor_debounce_requires_time():
+def test_sensor_debounce_requires_time(clock):
     manager = SensorManager(None, {}, profile=None)
     manager.set_debounce_time("toolhead", 50.0)
     manager.read("toolhead")  # inicializa estado estable
@@ -43,15 +70,13 @@ def test_sensor_debounce_requires_time():
     assert manager.read("toolhead").present is False  # aun no ha pasado el debounce
 
 
-def test_sensor_debounce_confirms_after_time():
-    import time
-
+def test_sensor_debounce_confirms_after_time(clock):
     manager = SensorManager(None, {}, profile=None)
     manager.set_debounce_time("toolhead", 0.5)
     manager.read("toolhead")
     manager.set_simulated_state("toolhead", True)
     manager.read("toolhead")  # marca candidato
-    time.sleep(0.003)
+    clock.advance(0.003)
     assert manager.is_present("toolhead") is True
 
 
@@ -61,9 +86,7 @@ def test_sensor_debounce_clamped():
     assert manager.channels["toolhead"].debounce_ms == MAX_DEBOUNCE_MS
 
 
-def test_sensor_callback_on_change():
-    import time
-
+def test_sensor_callback_on_change(clock):
     manager = SensorManager(None, {}, profile=None)
     manager.set_debounce_time("toolhead", 0.5)
     manager.poll()  # inicializa
@@ -71,7 +94,7 @@ def test_sensor_callback_on_change():
     manager.register_callback("toolhead", lambda reading: events.append(reading.present))
     manager.set_simulated_state("toolhead", True)
     manager.poll()  # candidato
-    time.sleep(0.003)
+    clock.advance(0.003)
     manager.poll()  # confirma -> callback
     assert events == [True]
 

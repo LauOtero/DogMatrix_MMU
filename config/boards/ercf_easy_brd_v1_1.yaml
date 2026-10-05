@@ -1,0 +1,50 @@
+# Dog Matrix MMU - Definicion de placa
+# ERCF Easy Brd V1.1 (Seeeduino XIAO / SAMD21G18).
+#
+# Fuente: https://mellow-3d.github.io/fly_ercf_v1.1_general.html
+#         https://github.com/Tircown/ERCF-easy-brd
+schema_version: 1
+board_id: ercf_easy_brd_v1_1
+display_name: ERCF Easy Brd V1.1
+happy_hare_board_type: EASY_BRD
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+mcu:
+  name: mmu
+  transport: usb
+  arch: samd21
+source_url: https://github.com/Tircown/ERCF-easy-brd
+drivers:
+  - step: PA9
+    dir: PB8
+    enable: "!PA11"
+    uart: PA8
+    uart_address: 1
+    diag: PA7
+  - step: PA4
+    dir: PA10
+    enable: "!PA2"
+    uart: PA8
+    uart_address: 0
+pins:
+  selector_endstop: "^!PB9"
+  encoder: "^PA6"
+  servo: PA5
+shared_pins:
+  - "GEAR_UART,SEL_UART"
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: false
+  servo: true
+  cutter: false
+  led: false
+  canbus: false
+  i2c: false
+notes: >-
+  MCU a 3.3 V; no conectar senal > 3.3 V. El UART de los TMC2209 es un bus
+  compartido con uart_address 0 (gear) / 1 (selector). El encoder y el sensor de
+  salida comparten PA6 (duplicate_pin_override). Sin neopixel ni sensor de
+  toolhead en placa.

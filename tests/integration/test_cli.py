@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from installer.cli import main
+
+pytestmark = pytest.mark.slow
 
 
 def test_cli_preflight_returns_success():

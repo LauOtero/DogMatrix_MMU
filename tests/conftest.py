@@ -22,16 +22,24 @@ def fake_printer() -> FakePrinter:
 
 @pytest.fixture()
 def make_core(tmp_path):
-    """Fabrica un DogMatrixCore con hardware simulado y rutas temporales."""
+    """Fabrica un DogMatrixCore con hardware simulado y rutas temporales.
+
+    Notas de rendimiento/determinismo:
+    - ``log_level="warning"`` evita la E/S de disco por cada transicion de la FSM
+      (los tests que validan logs de ``debug``/``info`` configuran su propio
+      ``log_level`` explicitamente).
+    - El estado persistente y los logs viven en ``tmp_path`` (sin tocar disco
+      compartido) para que la suite sea reproducible y aislada.
+    """
     from dog_matrix.core import DogMatrixCore
 
-    def _make(profile: str = "box_turtle", **overrides):
+    def _make(profile: str = "box_turtle", toolhead_present: bool = False, **overrides):
         values = {
             "profile": profile,
             "state_store": str(tmp_path / "dog_matrix_state.json"),
             "log_path": str(tmp_path / "logs" / "dog_matrix.jsonl"),
             "evidence_dir": str(tmp_path / "evidence"),
-            "log_level": "debug",
+            "log_level": "warning",
             "enable_led": False,
             "enable_spoolman": False,
             "enable_nfc": False,
@@ -43,6 +51,8 @@ def make_core(tmp_path):
         config = FakeConfig(printer=printer, values=values)
         core = DogMatrixCore(config)
         printer.objects["dog_matrix"] = core
+        if toolhead_present:
+            core.sensors.set_simulated_state("toolhead", True)
         return core, printer
 
     return _make

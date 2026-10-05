@@ -1,0 +1,11 @@
+{
+  "config_hash": "sha256:f099bb48d10bc1fad7e80f1a6c02837f533f408b1ab93479037b7e8f9bf527cb",
+  "files": {
+    "dog_matrix_generated.cfg": "sha256:fefd107ff130dd582a408a3573a62799a4e9ee23b527383fe4e3d90fdf047fc1",
+    "dog_matrix_macros.cfg": "sha256:018c05eb64c5eb53cd584c16981e31d93002968e44247bcb26543f31544c7d1a",
+    "dog_matrix_profile.json": "sha256:30486356cd98624b68b1b1fefa48d0301c790bc83b6f7e1b823d75447c1c04cd",
+    "moonraker_dog_matrix.conf": "sha256:1e838dd2b5fb6fa2435f238b3d4bce10305fb41ebfcbee469fd13b402877d5bb"
+  },
+  "generated_at": "2026-01-01T00:00:00Z",
+  "profile_id": "dog_matrix.kms.v1"
+}

@@ -1,0 +1,78 @@
+# Dog Matrix MMU - Definicion de placa
+# Mellow FLY-MMU (STM32H723, 4 drivers TMC, CAN + RS232).
+#
+# Fuente: https://mellow.klipper.cn/en/docs/ProductDoc/ToolBoard/fly-mmu/mmu/pin
+#         https://mellow.klipper.cn/en/docs/ProductDoc/ToolBoard/fly-mmu/mmu/cfg
+#
+# Por defecto Happy Hare la trata como "Other" (sin BOARD_TYPE propio) y usa el
+# bloque [board_pins] con alias MMU_* que se reproduce aqui. Admite ambas
+# topologias: selectora (SEL=DRIVER0, GEAR=DRIVER1) y gear-per-gate de 4
+# bobinas (DRIVER0..DRIVER3 = bobina 0..3).
+schema_version: 1
+board_id: mellow_fly_mmu
+display_name: Mellow FLY-MMU
+happy_hare_board_type: OTHER
+topology: both
+coils_per_unit: 4
+max_gates: 8
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: stm32h723
+source_url: https://mellow.klipper.cn/en/docs/ProductDoc/ToolBoard/fly-mmu/mmu/cfg
+drivers:
+  - step: PE14
+    dir: PE13
+    enable: "!PE12"
+    uart: PE11
+    diag: PE9
+  - step: PC5
+    dir: PB1
+    enable: "!PB0"
+    uart: PE7
+    diag: PE8
+  - step: PC4
+    dir: PA6
+    enable: "!PA7"
+    uart: PA5
+  - step: PE4
+    dir: PE6
+    enable: "!PE5"
+    uart: PC13
+pins:
+  selector_endstop: PE2
+  encoder: "^PE3"
+  gate_sensor: "^PC3"
+  servo: PA3
+  cut_servo: PA2
+  neopixel: PE10
+  pre_gate:
+    - PC6
+    - PD15
+    - PD14
+    - PD13
+    - PD12
+    - PD11
+    - PD10
+    - PD9
+reserved:
+  neopixel_alt: PA8
+  fan_0: PA0
+  fan_1: PA1
+  fan_2: PA2
+  fan_3: PA3
+capabilities:
+  selector: true
+  gear_per_gate: true
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: true
+  led: true
+  canbus: true
+  i2c: false
+notes: >-
+  Los pines de DIAG (PE8/PE9) y PRE_GATE (PC6, PD15..PD9) provienen del bloque
+  de configuracion oficial; verificar contra el esquema fisico si se usa
+  stallguard o sensores pre-gate.

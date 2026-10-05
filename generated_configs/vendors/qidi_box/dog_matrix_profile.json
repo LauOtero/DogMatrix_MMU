@@ -1,0 +1,46 @@
+{
+  "capabilities": {
+    "cutter": false,
+    "encoder": true,
+    "endless_spool": true,
+    "espooler": false,
+    "gate_sensors": true,
+    "led": true,
+    "nfc": false,
+    "selector": false,
+    "servo": false,
+    "spoolman": true,
+    "sync_feedback": false,
+    "toolhead_sensor": true
+  },
+  "display_name": "QIDI Box",
+  "hardware": {
+    "board": "generic_gear_per_gate",
+    "coils_per_unit": 4,
+    "mcu": [
+      {
+        "name": "mmu",
+        "serial_by_id": "/dev/serial/by-id/usb-DogMatrix_MMU-0-if00",
+        "transport": "usb"
+      }
+    ]
+  },
+  "limits": {
+    "bowden_length_mm": 600,
+    "encoder_error_mm": 5,
+    "max_accel_mm_s2": 2000,
+    "max_distance_mm": 1500,
+    "max_jerk_mm_s3": 10000,
+    "max_load_speed_mm_s": 80,
+    "max_unload_speed_mm_s": 100,
+    "sensor_timeout_ms": 500,
+    "toolhead_distance_mm": 80
+  },
+  "profile_id": "dog_matrix.qidi_box.v1",
+  "schema_version": 1,
+  "topology": {
+    "gates": 4,
+    "type": "gear_per_gate",
+    "units": 1
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "config_hash": "sha256:5170234a895297e1661318cbb4dc8393abf837abd8b99354ead4bcd3782e482a",
+  "files": {
+    "dog_matrix_generated.cfg": "sha256:8d068f75776a1e83ab991fb90d3669938a4f981960fc400b1354cf8df151d100",
+    "dog_matrix_macros.cfg": "sha256:1db43140e67a9b4260edfc481d9b414ae73683bf57a506dd233d55578a26d323",
+    "dog_matrix_profile.json": "sha256:a43f097f1b5725d72a4fd08dc20334dcae41379de302f9c09aa661cc55d34706",
+    "moonraker_dog_matrix.conf": "sha256:1e838dd2b5fb6fa2435f238b3d4bce10305fb41ebfcbee469fd13b402877d5bb"
+  },
+  "generated_at": "2026-01-01T00:00:00Z",
+  "profile_id": "dog_matrix.box_turtle.v1"
+}

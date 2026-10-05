@@ -98,6 +98,13 @@ Componente: `moonraker/components/dog_matrix.py`.
 | `GET` | `/server/dog_matrix/status` | — | `{"status": {...}}` |
 | `POST` | `/server/dog_matrix/toolchange` | `{"tool": 2}` | `{"ok": true, "tool": 2, "result": "..."}` |
 | `POST` | `/server/dog_matrix/recover` | `{"code": "ERR_..."}` | `{"ok": true, "result": "..."}` |
+| `POST` | `/server/dog_matrix/preprocess` | `{"content": "<gcode>"}` o `{"path": "/ruta.gcode"}` | `{"ok": true, "referenced_tools": [...], "total_toolchanges": n, "colors": [...], "temperatures": [...]}` |
+
+`/preprocess` extrae de un G-code las herramientas referenciadas (`T`), el número
+de cambios de herramienta, los colores del slicer (`; filament_colour = ...`) y las
+temperaturas de extrusor (`M104`/`M109 S...`). Acepta el contenido directamente
+(`content`/`gcode`) o una ruta (`path`) que, si se define `gcode_root` en la
+configuración del componente, debe estar dentro de ese directorio.
 
 Ejemplo:
 
@@ -105,6 +112,8 @@ Ejemplo:
 curl -s http://127.0.0.1:7125/server/dog_matrix/status | jq
 curl -s -X POST http://127.0.0.1:7125/server/dog_matrix/toolchange \
      -H 'Content-Type: application/json' -d '{"tool": 2}'
+curl -s -X POST http://127.0.0.1:7125/server/dog_matrix/preprocess \
+     -H 'Content-Type: application/json' -d '{"content": "T0\nT1\nM104 S210\n"}'
 ```
 
 ### 3.2 Notificación WebSocket

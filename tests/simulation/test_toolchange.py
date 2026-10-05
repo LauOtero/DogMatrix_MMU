@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from tests.fixtures.fakes import FakeGcodeError
+
 
 def test_toolchange_sequence_multiple_gates(make_core):
-    core, printer = make_core()
-    core.sensors.set_simulated_state("toolhead", True)
+    core, printer = make_core(toolhead_present=True)
     for tool in range(4):
         gcmd = printer.gcode.run("DM_CHANGE", {"TOOL": tool})
         assert any("Toolchange OK" in response for response in gcmd.responses)
@@ -15,16 +16,13 @@ def test_toolchange_sequence_multiple_gates(make_core):
 
 
 def test_toolchange_emits_movement_scripts(make_core):
-    core, printer = make_core()
-    core.sensors.set_simulated_state("toolhead", True)
+    core, printer = make_core(toolhead_present=True)
     printer.gcode.run("DM_CHANGE", {"TOOL": 1})
     # El gate 0 no estaba cargado: debe haber al menos un movimiento de carga.
     assert any(script.startswith("G1 E") for script in printer.gcode.scripts)
 
 
 def test_toolchange_fails_without_filament_sensor(make_core):
-    from tests.fixtures.fakes import FakeGcodeError
-
     core, printer = make_core()
     core.sensors.set_simulated_state("toolhead", False)
     try:

@@ -1,0 +1,32 @@
+# Dog Matrix MMU - Arquetipo generico gear-per-gate (tipo-B)
+#
+# Para placas no listadas con un driver por gate (equivalente al "Other" de
+# Happy Hare en disenos tipo-B como KMS/VVD/QIDI/EMU). El usuario completa los
+# drivers; cada unidad admite `coils_per_unit` bobinas.
+schema_version: 1
+board_id: generic_gear_per_gate
+display_name: Generic Gear-per-Gate Board (tipo-B)
+happy_hare_board_type: OTHER
+topology: gear_per_gate
+coils_per_unit: 4
+max_gates: 4
+mcu:
+  name: mmu
+  transport: can
+  arch: ""
+source_url: ""
+drivers: []
+pins: {}
+capabilities:
+  selector: false
+  gear_per_gate: true
+  encoder: true
+  gate_sensors: true
+  servo: false
+  cutter: false
+  led: true
+  canbus: true
+  i2c: false
+notes: >-
+  Arquetipo sin pinout para disenos gear-per-gate no listados. Declarar un driver
+  por bobina (por defecto 4).

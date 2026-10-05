@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from . import profiles_dir
+from . import profiles_dir, project_root
 
 # Mensajes de salida estandar (seccion 6.16).
 VALIDATION_PASS = "VALIDATION_PASS"
@@ -69,6 +69,24 @@ class HealthStatus:
         return {"healthy": self.healthy, "checks": self.checks}
 
 
+@dataclass
+class BoardValidationResult:
+    """Resultado de validar una placa y su plan de pines."""
+
+    board: Any
+    plan: Any
+    passed: bool
+    errors: List[str] = field(default_factory=list)
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "board_id": getattr(self.board, "board_id", None),
+            "passed": self.passed,
+            "errors": list(self.errors),
+            "plan": self.plan.as_dict() if hasattr(self.plan, "as_dict") else None,
+        }
+
+
 def _version_tuple(version: str) -> tuple:
     parts: List[int] = []
     for token in str(version).replace("-", ".").split("."):
@@ -122,6 +140,51 @@ class SystemValidator:
             if len(sources) > 1:
                 conflicts.append(PinConflict(pin=str(pin), sources=sources))
         return conflicts
+
+    @staticmethod
+    def _boards_module() -> Any:
+        extras = project_root() / "klippy" / "extras"
+        if str(extras) not in sys.path:
+            sys.path.insert(0, str(extras))
+        from dog_matrix import boards  # type: ignore
+
+        return boards
+
+    def validate_pin_plan(self, plan: Any) -> List[PinConflict]:
+        """Valida un ``PinPlan`` resuelto (conflictos de recursos de hardware)."""
+        boards = self._boards_module()
+        return [
+            PinConflict(pin=conflict.pin, sources=list(conflict.aliases))
+            for conflict in boards.validate_pin_plan(plan)
+        ]
+
+    def validate_board_plan(
+        self,
+        board_id: str,
+        gates: Optional[int] = None,
+        units: int = 1,
+        topology: Optional[str] = None,
+        coils_per_unit: Optional[int] = None,
+        boards_dir: Optional[str] = None,
+    ) -> "BoardValidationResult":
+        """Carga una placa, construye su plan y valida definicion + conflictos."""
+        boards = self._boards_module()
+        board = boards.load_board(board_id, boards_dir)
+        definition_conflicts = [
+            PinConflict(pin=c.pin, sources=list(c.aliases))
+            for c in boards.validate_board_definition(board)
+        ]
+        plan = boards.build_pin_plan(
+            board, gates=gates, units=units, topology=topology, coils_per_unit=coils_per_unit
+        )
+        plan_conflicts = self.validate_pin_plan(plan)
+        errors = [
+            f"conflicto en la definicion de placa {board_id}: {c.pin} -> {c.sources}"
+            for c in definition_conflicts
+        ] + [
+            f"conflicto de pines en {board_id}: {c.pin} -> {c.sources}" for c in plan_conflicts
+        ]
+        return BoardValidationResult(board=board, plan=plan, passed=not errors, errors=errors)
 
     # -- Versiones ----------------------------------------------------------
     def validate_version_compatibility(self, env_versions: Dict[str, str]) -> CompatibilityReport:
@@ -180,6 +243,7 @@ __all__ = [
     "PinConflict",
     "CompatibilityReport",
     "HealthStatus",
+    "BoardValidationResult",
     "VALIDATION_PASS",
     "VALIDATION_WARNING",
     "VALIDATION_FAIL",

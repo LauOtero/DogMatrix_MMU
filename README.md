@@ -399,6 +399,10 @@ DM_ENCODER
 | **SAFETY.md** | Análisis FMEA, runbook recuperación, limitaciones conocidas, fail-safe | [SAFETY.md](docs/SAFETY.md) |
 | **TROUBLESHOOTING.md** | Diagnóstico por código de error, soluciones comunes, logs | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
 | **PROFILES.md** | Detalle de 7 perfiles hardware, customización, validación | [PROFILES.md](docs/PROFILES.md) |
+| **PIN_CONFIGURATION.md** | Sistema de pines y placas: alias MMU_*/DM_*, soporte Fly-MMU/ERCF/ERB/MMB, I2C, post-gate dual, 4 bobinas por unidad, migración | [PIN_CONFIGURATION.md](docs/PIN_CONFIGURATION.md) |
+| **WIZARD.md** | Asistente tipo menuconfig: catálogo de proveedores (Box Turtle, ERCF, EMU, Tradrack, VViD…), multi-unidad encadenada | [WIZARD.md](docs/WIZARD.md) |
+| **FILAMENT_FLOW.md** | Flujo de carga (pre_gate→post_gate→toolhead), hub/splitter, buffer de tensión/compresión, encoder y diámetro | [FILAMENT_FLOW.md](docs/FILAMENT_FLOW.md) |
+| **CONFIGURATION_FORMAT.md** | Formato YAML vs JSON, organización multi-configuración, asistente de placas y convenciones | [CONFIGURATION_FORMAT.md](docs/CONFIGURATION_FORMAT.md) |
 | **requirements.csv** | Matriz de requisitos trazables (funcionales, no funcionales, restricciones) | [requirements.csv](docs/requirements.csv) |
 | **compatibility-matrix.yaml** | Matriz compatibilidad MMU×Klipper×Moonraker×Features | [compatibility-matrix.yaml](docs/compatibility-matrix.yaml) |
 | **funcionalidades_faltantes.md** | Plan de implementación 18 funcionalidades en 4 fases (Fase 1-4 completadas) | [funcionalidades_faltantes.md](docs/funcionalidades_faltantes.md) |

@@ -171,6 +171,7 @@ class StateMachine:
             self._emit_callback("_DM_ACTION_CHANGED", action="prepare", state=self.state.value)
             if self._has_filament_loaded():
                 self._emit_callback("_DM_PRE_UNLOAD", action="pre_unload")
+                self._maybe_form_tip()
                 self._phase(MMUState.UNLOAD, lambda: self._unload(), result)
                 self._emit_callback("_DM_POST_UNLOAD", action="post_unload")
             self._phase(MMUState.SELECT, lambda: self._select(gate), result)
@@ -235,8 +236,24 @@ class StateMachine:
 
     def _prepare(self) -> None:
         motion = getattr(self.core, "motion", None)
-        if motion is not None:
-            motion.prepare()
+        if motion is None:
+            return
+        motion.prepare()
+        park = getattr(motion, "park_toolhead", None)
+        if callable(park):
+            try:
+                park("pre_unload")
+            except Exception:  # noqa: BLE001 - parking opcional
+                pass
+
+    def _maybe_form_tip(self) -> None:
+        """Ejecuta la formacion de punta antes de descargar (si esta disponible)."""
+        runner = getattr(self.core, "_run_form_tip", None)
+        if callable(runner):
+            try:
+                runner()
+            except Exception:  # noqa: BLE001 - tip forming opcional
+                pass
 
     def _has_filament_loaded(self) -> bool:
         selector = getattr(self.core, "selector", None)
@@ -283,6 +300,13 @@ class StateMachine:
         return bool(getattr(self.core, "enable_purge", False))
 
     def _purge(self) -> None:
+        runner = getattr(self.core, "_run_purge", None)
+        if callable(runner):
+            try:
+                if runner():
+                    return
+            except Exception:  # noqa: BLE001 - purga opcional
+                pass
         motion = getattr(self.core, "motion", None)
         profile = getattr(self.core, "profile", None)
         if motion is None:
@@ -311,8 +335,15 @@ class StateMachine:
         )
 
     def _emit_callback(self, callback_name: str, **kwargs: Any) -> None:
-        """Emite un callback de macro de ciclo de vida."""
+        """Emite un callback de macro de ciclo de vida (hooks F-23)."""
         self._emit("info", "callback_invoke", callback=callback_name, **kwargs)
+        core = getattr(self, "core", None)
+        emitter = getattr(core, "_emit_callback", None)
+        if callable(emitter) and getattr(core, "enable_lifecycle_hooks", False):
+            try:
+                emitter(callback_name, **kwargs)
+            except Exception:  # noqa: BLE001 - las macros son opcionales
+                pass
 
     def _emit(self, level: str, event: str, **kwargs: Any) -> None:
         diagnostics = getattr(self.core, "diagnostics", None)

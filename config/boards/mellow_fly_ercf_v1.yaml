@@ -1,0 +1,62 @@
+# Dog Matrix MMU - Definicion de placa
+# Mellow FLY-ERCF V1 (Fly-ERCF-Easy-BRD V1.1, RP2040).
+#
+# Fuente: https://mellow-3d.github.io/fly_ercf_v1.1_pins.html
+#         https://mellow.klipper.cn/en/docs/category/fly-ercf
+schema_version: 1
+board_id: mellow_fly_ercf_v1
+display_name: Mellow FLY-ERCF V1
+happy_hare_board_type: MELLOW_EASY_BRD_CAN_1
+topology: selector
+coils_per_unit: 1
+max_gates: 12
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: rp2040
+source_url: https://mellow-3d.github.io/fly_ercf_v1.1_pins.html
+drivers:
+  - step: gpio2
+    dir: gpio1
+    enable: "!gpio3"
+    uart: gpio0
+    diag: gpio22
+  - step: gpio7
+    dir: gpio8
+    enable: "!gpio6"
+    uart: gpio9
+    diag: gpio23
+pins:
+  selector_endstop: "^gpio20"
+  encoder: "^gpio15"
+  servo: gpio21
+  neopixel: gpio14
+  pre_gate:
+    - gpio10
+    - gpio26
+    - gpio11
+    - gpio27
+    - gpio12
+    - gpio28
+    - gpio24
+    - gpio29
+    - gpio13
+    - gpio25
+reserved:
+  can_rx: gpio4
+  can_tx: gpio5
+  status_led: gpio17
+capabilities:
+  selector: true
+  gear_per_gate: false
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: true
+  canbus: true
+  i2c: false
+notes: >-
+  Placa selectora tipo-A. Gear y selector comparten el contador de gates; admite
+  4, 9, 12... gates mediante expansion IO (PRE_GATE).

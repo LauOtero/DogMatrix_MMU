@@ -28,8 +28,10 @@ class FakeGcmd:
             return None
         return int(value)
 
-    def get_float(self, key: str, default: float = 0.0, **kwargs: Any) -> float:
+    def get_float(self, key: str, default: float = 0.0, **kwargs: Any) -> Any:
         value = self.params.get(key, default)
+        if value is None:
+            return None
         return float(value)
 
     def respond_info(self, message: str) -> None:
@@ -62,6 +64,41 @@ class FakeGcode:
         return command
 
 
+class FakeReactor:
+    """Reactor de Klipper simulado (timers + callbacks + reloj)."""
+
+    NEVER = 1.0e18
+
+    def __init__(self) -> None:
+        self.now = 0.0
+        self.timers: Dict[int, Any] = {}
+        self.callbacks: List[Callable[[float], None]] = []
+        self._next_id = 0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def register_timer(self, callback: Callable[[float], float], when: float) -> int:
+        self._next_id += 1
+        self.timers[self._next_id] = (callback, when)
+        return self._next_id
+
+    def update_timer(self, handle: int, when: float) -> None:
+        callback, _ = self.timers[handle]
+        self.timers[handle] = (callback, when)
+
+    def register_callback(self, callback: Callable[[float], None]) -> None:
+        self.callbacks.append(callback)
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+    def run_callbacks(self) -> None:
+        callbacks, self.callbacks = self.callbacks, []
+        for callback in callbacks:
+            callback(self.now)
+
+
 class FakePrinter:
     """Printer de Klipper simulado."""
 
@@ -69,9 +106,21 @@ class FakePrinter:
         self.gcode = FakeGcode()
         self.objects: Dict[str, Any] = {"gcode": self.gcode}
         self.events: Dict[str, List[Callable[[], None]]] = {}
+        self.reactor = FakeReactor()
+        self.sent_events: List[Any] = []
 
     def lookup_object(self, name: str, default: Any = None) -> Any:
         return self.objects.get(name, default)
+
+    def add_object(self, name: str, obj: Any) -> None:
+        """Equivalente a Printer.add_object de Klipper."""
+        self.objects[name] = obj
+
+    def get_reactor(self) -> FakeReactor:
+        return self.reactor
+
+    def send_event(self, name: str, **kwargs: Any) -> None:
+        self.sent_events.append((name, kwargs))
 
     def register_event_handler(self, event: str, callback: Callable[[], None]) -> None:
         self.events.setdefault(event, []).append(callback)
@@ -116,4 +165,4 @@ class FakeConfig:
         return self._printer
 
 
-__all__ = ["FakeGcodeError", "FakeGcmd", "FakeGcode", "FakePrinter", "FakeConfig"]
+__all__ = ["FakeGcodeError", "FakeGcmd", "FakeGcode", "FakePrinter", "FakeConfig", "FakeReactor"]

@@ -70,8 +70,22 @@ class SensorManager:
         self.sync_feedback = self._init_sync_feedback(config, profile)
 
     def _init_sync_feedback(self, config: Any, profile: Any) -> Optional[Dict[str, Any]]:
-        """Inicializa el buffer de sync-feedback para detección de enredos."""
-        
+        """Inicializa el buffer de sync-feedback para deteccion de enredos.
+
+        Solo se habilita si el perfil declara ``capabilities.sync_feedback``.
+        Los umbrales se expresan como fraccion de desviacion admisible sobre el
+        movimiento solicitado (paridad Happy Hare: tangle/clog).
+        """
+        has_capability = getattr(profile, "has_capability", None) if profile is not None else None
+        enabled = bool(callable(has_capability) and has_capability("sync_feedback"))
+        if not enabled:
+            return None
+        return {
+            "tangle_threshold": 0.3,
+            "clog_threshold": 0.5,
+            "consecutive_violations": 0,
+            "last_state": "ok",
+        }
 
     def _build_channels(self, config: Any, profile: Any) -> None:
         self.channels["toolhead"] = _SensorChannel("toolhead", DEFAULT_DEBOUNCE_MS)

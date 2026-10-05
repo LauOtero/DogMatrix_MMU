@@ -92,6 +92,98 @@ class KlipperScreenMMUPanel:
         self._maybe_emit("error", view)
         return view
 
+    # -- Vistas ampliadas (paridad KlipperScreen fork) ----------------------
+    def render_ttg_editor(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        """Editor de mapa tool->gate (TTG) para la UI."""
+        ttg = status.get("ttg_map", [])
+        gates = int(status.get("gates", len(ttg)))
+        view = {
+            "title": "Mapa TTG",
+            "rows": [
+                {
+                    "tool": tool,
+                    "gate": ttg[tool] if tool < len(ttg) else None,
+                    "gates": list(range(gates)),
+                }
+                for tool in range(len(ttg))
+            ],
+        }
+        self._maybe_emit("ttg_editor", view)
+        return view
+
+    def render_gate_editor(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        """Editor de gate map (material/color/spool) para la UI."""
+        gates = int(status.get("gates", 0))
+        gate_status = status.get("gate_status", [])
+        filament = status.get("gate_filament", [])
+        view = {
+            "title": "Editar gates",
+            "gates": [
+                {
+                    "index": index,
+                    "status": gate_status[index] if index < len(gate_status) else "unknown",
+                    "material": filament[index].get("material", "") if index < len(filament) else "",
+                    "color": filament[index].get("color", "") if index < len(filament) else "",
+                    "spool_id": filament[index].get("spool_id", "") if index < len(filament) else "",
+                }
+                for index in range(gates)
+            ],
+        }
+        self._maybe_emit("gate_editor", view)
+        return view
+
+    def render_maintenance_view(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        """Vista de mantenimiento (contadores y limites)."""
+        counters = status.get("counters_store", {})
+        view = {
+            "title": "Mantenimiento",
+            "counters": [
+                {"name": name, "value": payload.get("value", 0), "limit": payload.get("limit", -1)}
+                for name, payload in sorted(counters.items())
+            ],
+            "actions": ["Limpiar contador", "Test movimiento", "Motores OFF"],
+        }
+        self._maybe_emit("maintenance", view)
+        return view
+
+    def render_environment_view(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        """Vista de entorno (secado/ventilacion)."""
+        env = status.get("environment", {}) if isinstance(status, dict) else {}
+        view = {
+            "title": "Entorno",
+            "temperature": env.get("actual_temp", env.get("temperature", 0.0)),
+            "humidity": env.get("actual_humidity", env.get("humidity", 0.0)),
+            "drying": env.get("drying", False),
+            "dryer_power": env.get("dryer_power", 0.0),
+            "actions": ["Secar", "Parar secado", "Ventilar"],
+        }
+        self._maybe_emit("environment", view)
+        return view
+
+    def render_stats_view(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        """Vista de estadisticas y telemetria."""
+        view = {
+            "title": "Estadisticas",
+            "counters": status.get("counters", {}),
+            "timings": status.get("toolchange_timings", {}),
+            "flowguard": status.get("flowguard", {}),
+        }
+        self._maybe_emit("stats", view)
+        return view
+
+    def render_test_menu(self) -> Dict[str, Any]:
+        """Menu de pruebas guiadas de hardware."""
+        view = {
+            "title": "Pruebas",
+            "items": [
+                "DM_TEST_MOVE", "DM_TEST_HOMING_MOVE", "DM_TEST_TRACKING",
+                "DM_TEST_BUZZ_MOTOR", "DM_TEST_LOAD", "DM_TEST_GRIP",
+                "DM_TEST_RUNOUT", "DM_TEST_FORM_TIP",
+            ],
+        }
+        self._maybe_emit("test_menu", view)
+        return view
+
     # -- Integracion --------------------------------------------------------
     def _send_gcode(self, script: str) -> bool:
         if self.screen_manager is None:

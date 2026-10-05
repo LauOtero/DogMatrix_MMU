@@ -1,16 +1,18 @@
-"""Control de indicadores LED direccionables para senalizacion de estado.
+"""Control de LEDs direccionables con efectos, segmentos y animaciones.
 
 Mapea el estado de gates y de la FSM a colores/animaciones y los vuelca sobre
-objetos NeoPixel de Klipper (informe 6.18). La tasa de refresco se controla
-mediante ``get_status``/``update``.
+objetos NeoPixel de Klipper. Soporta efectos (solid, blink, breathing, rainbow)
+y segmentos por gate, refrescados por el reactor a >= 20 Hz.
 
-Requisitos: refresco >= 20 Hz para animaciones fluidas, bajo impacto en bus MCU.
+Diseno: el calculo de color es puro y determinista (indice + tick); el volcado
+a hardware se aisla para que su ausencia nunca rompa el flujo.
 """
 
 from __future__ import annotations
 
+import colorsys
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 # Estados de gate reconocidos.
 GATE_UNKNOWN = "unknown"
@@ -38,23 +40,49 @@ STATE_COLORS: Dict[str, Tuple[int, int, int]] = {
     "RECOVERING": (128, 96, 0),
 }
 
+# Efectos disponibles.
+EFFECT_SOLID = "solid"
+EFFECT_BLINK = "blink"
+EFFECT_BREATHING = "breathing"
+EFFECT_RAINBOW = "rainbow"
+EFFECT_OFF = "off"
+
 REFRESH_HZ = 20.0
 
 
-class LEDSystem:
-    """Gestiona la cadena LED del MMU."""
+def _cfg_get(config: Any, key: str, default: Any) -> Any:
+    """Lee un valor de un ConfigWrapper o de un dict de forma segura."""
+    if config is None:
+        return default
+    if isinstance(config, dict):
+        return config.get(key, default)
+    getter = getattr(config, "get", None)
+    if callable(getter):
+        try:
+            return getter(key, default)
+        except TypeError:
+            return default
+    return default
 
-    def __init__(self, printer: Any, config: Any, profile: Any = None) -> None:
+
+class LEDSystem:
+    """Gestiona la cadena LED del MMU con efectos y segmentos."""
+
+    def __init__(self, printer: Any, config: Any = None, profile: Any = None) -> None:
         self.printer = printer
         self.config = config
         self.count = 0
         if profile is not None:
             led_cfg = profile.hardware.get("led", {}) if profile.hardware else {}
             self.count = int(led_cfg.get("count", 0))
+        self.count = int(_cfg_get(config, "led_count", self.count))
         self.colors: Dict[int, Tuple[int, int, int]] = {}
         self.animation: Optional[str] = None
         self.animation_state: Optional[str] = None
-        self._phase = 0
+        self.effect: str = EFFECT_SOLID
+        self.effect_color: Tuple[int, int, int] = (0, 0, 64)
+        self._base_colors: Dict[int, Tuple[int, int, int]] = {}
+        self._tick = 0
         self._last_update = 0.0
         self._neopixel = self._lookup_neopixel()
 
@@ -70,26 +98,63 @@ class LEDSystem:
                 continue
         return None
 
-    # -- API publica --------------------------------------------------------
+    # -- Colores base -------------------------------------------------------
     def set_gate_status_color(self, gate: int, status: str) -> None:
-        self.colors[gate] = GATE_COLORS.get(status, GATE_COLORS[GATE_UNKNOWN])
+        self._base_colors[gate] = GATE_COLORS.get(status, GATE_COLORS[GATE_UNKNOWN])
 
     def set_filament_color(self, gate: int, rgb_hex: str) -> None:
-        self.colors[gate] = self._hex_to_rgb(rgb_hex)
+        self._base_colors[gate] = self._hex_to_rgb(rgb_hex)
 
-    def set_system_state_animation(self, state: str, animation_type: str = "solid") -> None:
+    def set_led(self, index: int, rgb: Tuple[int, int, int]) -> None:
+        """Fija el color directo de un LED concreto."""
+        self._base_colors[index] = tuple(rgb)  # type: ignore[assignment]
+
+    def set_segment(self, start: int, count: int, rgb: Tuple[int, int, int]) -> None:
+        """Colorea un segmento contiguo de LEDs."""
+        for index in range(start, start + count):
+            self._base_colors[index] = tuple(rgb)  # type: ignore[assignment]
+
+    # -- Efectos ------------------------------------------------------------
+    def set_system_state_animation(self, state: str, animation_type: str = EFFECT_SOLID) -> None:
         self.animation_state = state
-        self.animation = animation_type
         base = STATE_COLORS.get(state, (0, 0, 64))
+        self.effect = animation_type
+        self.effect_color = base
         for index in range(self.count):
-            self.colors[index] = base
+            self._base_colors[index] = base
+
+    def set_effect(self, effect: str, rgb: Optional[Tuple[int, int, int]] = None) -> None:
+        """Activa un efecto global (solid/blink/breathing/rainbow/off)."""
+        self.effect = str(effect).lower()
+        if rgb is not None:
+            self.effect_color = tuple(rgb)  # type: ignore[assignment]
 
     def clear_all(self) -> None:
         self.colors.clear()
+        self._base_colors.clear()
         self.animation = None
+        self.effect = EFFECT_OFF
         for index in range(self.count):
             self.colors[index] = (0, 0, 0)
         self._flush()
+
+    # -- Animacion ----------------------------------------------------------
+    def frame_color(self, index: int, tick: int) -> Tuple[int, int, int]:
+        """Color deterministico de un LED para un tick dado (funcion pura)."""
+        effect = self.effect
+        if effect == EFFECT_OFF:
+            return (0, 0, 0)
+        if effect == EFFECT_RAINBOW:
+            hue = ((tick * 3) + (index * 360 / max(1, self.count))) % 360 / 360.0
+            r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+            return (int(r * 255), int(g * 255), int(b * 255))
+        base = self._base_colors.get(index, self.colors.get(index, self.effect_color))
+        if effect == EFFECT_BLINK:
+            return base if (tick // 5) % 2 == 0 else (0, 0, 0)
+        if effect == EFFECT_BREATHING:
+            scale = 0.15 + 0.85 * (abs((tick % 40) - 20) / 20.0)
+            return (int(base[0] * scale), int(base[1] * scale), int(base[2] * scale))
+        return base
 
     def update(self, eventtime: float) -> float:
         """Refresca la cadena LED. Devuelve el instante del proximo refresco."""
@@ -97,15 +162,19 @@ class LEDSystem:
         period = 1.0 / REFRESH_HZ
         if (now - self._last_update) >= period:
             self._last_update = now
-            self._phase = (self._phase + 1) % self.count if self.count else 0
+            self._tick += 1
+            for index in range(self.count):
+                self.colors[index] = self.frame_color(index, self._tick)
             self._flush()
         return now + period
 
+    # -- Estado -------------------------------------------------------------
     def get_status(self) -> Dict[str, Any]:
         return {
             "count": self.count,
             "colors": {index: "#%02x%02x%02x" % rgb for index, rgb in self.colors.items()},
             "animation": self.animation,
+            "effect": self.effect,
             "state": self.animation_state,
         }
 
@@ -113,8 +182,15 @@ class LEDSystem:
     def _flush(self) -> None:
         if self._neopixel is None:
             return
+        led_helper = getattr(self._neopixel, "led_helper", None)
+        if led_helper is None:
+            return
         try:
-            self._neopixel.led_helper.set_color(self._phase, self.colors.get(self._phase, (0, 0, 0)))
+            for index in range(self.count):
+                led_helper.set_color(index, self.colors.get(index, (0, 0, 0)))
+            show = getattr(led_helper, "show", None)
+            if callable(show):
+                show()
         except Exception:  # noqa: BLE001 - hardware no disponible
             return
 
@@ -129,4 +205,6 @@ class LEDSystem:
             return (0, 0, 0)
 
 
-__all__ = ["LEDSystem", "GATE_COLORS", "STATE_COLORS", "REFRESH_HZ"]
+__all__ = ["LEDSystem", "GATE_COLORS", "STATE_COLORS", "REFRESH_HZ",
+           "EFFECT_SOLID", "EFFECT_BLINK", "EFFECT_BREATHING", "EFFECT_RAINBOW",
+           "EFFECT_OFF"]

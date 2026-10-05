@@ -1,0 +1,11 @@
+{
+  "config_hash": "sha256:421d1f68cd369f3dcd403f4cac40e8c9bce08386242e8becd0fd93ed8445365b",
+  "files": {
+    "dog_matrix_generated.cfg": "sha256:c8998e241c9cc610e420cf27ceaf0ea714487bf48c896d222c037185b1bd4ee7",
+    "dog_matrix_macros.cfg": "sha256:71ee7bf87d9f9cee08fae3ce90567ffa1c7908fac9bbb4d0b3c7c7a230998301",
+    "dog_matrix_profile.json": "sha256:dc57ccda13a46290c10175afd2703fde019d0f54e9412df3f7c5e1276d21c913",
+    "moonraker_dog_matrix.conf": "sha256:1e838dd2b5fb6fa2435f238b3d4bce10305fb41ebfcbee469fd13b402877d5bb"
+  },
+  "generated_at": "2026-01-01T00:00:00Z",
+  "profile_id": "dog_matrix.qidi_box.v1"
+}

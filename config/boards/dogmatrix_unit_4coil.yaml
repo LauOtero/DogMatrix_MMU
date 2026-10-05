@@ -1,0 +1,38 @@
+# Dog Matrix MMU - Arquetipo de unidad Dog Matrix (4 bobinas)
+#
+# Cada unidad Dog Matrix incorpora una placa base dedicada que controla
+# EXCLUSIVAMENTE 4 bobinas (gear-per-gate). Este arquetipo reserva, por unidad,
+# 4 conjuntos de control STEP/DIR/ENABLE/UART/DIAG mas los recursos compartidos.
+#
+# Los pines concretos dependen del hardware de la unidad: pueden definirse aqui
+# o seleccionar una placa fisica equivalente (p. ej. mellow_fly_mmu, que expone
+# 4 drivers). Para unidades multi-bobina, cada unidad se ejecuta como un MCU
+# independiente y sus gates se numeran de forma contigua.
+schema_version: 1
+board_id: dogmatrix_unit_4coil
+display_name: Dog Matrix Unit (4 bobinas)
+happy_hare_board_type: OTHER
+topology: gear_per_gate
+coils_per_unit: 4
+max_gates: 4
+mcu:
+  name: mmu
+  transport: usb
+  arch: ""
+source_url: ""
+drivers: []
+pins: {}
+capabilities:
+  selector: false
+  gear_per_gate: true
+  encoder: true
+  gate_sensors: true
+  servo: false
+  cutter: false
+  led: true
+  canbus: false
+  i2c: false
+notes: >-
+  Arquetipo generico. Completar los 4 drivers (step/dir/enable/uart/diag) para
+  la placa fisica de la unidad. En un sistema de N unidades habra N planos de
+  pines, uno por MCU, con gates contiguos (0-3, 4-7, ...).

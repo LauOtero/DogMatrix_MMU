@@ -70,7 +70,14 @@
                     "enum": [
                         "linear",
                         "rotary",
-                        "virtual"
+                        "virtual",
+                        "servo",
+                        "indexed",
+                        "multi_gear",
+                        "macro",
+                        "linear_mg",
+                        "linear_servo",
+                        "linear_mg_servo"
                     ]
                 },
                 "gate_pitch_mm": {
@@ -187,6 +194,15 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
+                "board": {
+                    "type": "string",
+                    "description": "Identificador de placa en config/boards (p. ej. mellow_fly_mmu)."
+                },
+                "coils_per_unit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                },
                 "mcu": {
                     "type": "array",
                     "items": {

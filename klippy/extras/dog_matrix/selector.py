@@ -79,6 +79,165 @@ class VirtualSelector(_SelectorStrategy):
         return True
 
 
+class ServoSelector(_SelectorStrategy):
+    """Selector por servo: mueve el servo al angulo configurado por gate.
+
+    El actuador se inyecta como ``servo(angle)``; si no esta disponible, solo
+    se registra la posicion (modo simulado/banco).
+    """
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int,
+                 servo: Optional[Any] = None) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        self.servo = servo
+        self.pitch_deg = float(config.get("servo_pitch_deg", 360.0 / self.gates))
+        angle_table = config.get("servo_angles")
+        self.angles: Dict[int, float] = (
+            {int(k): float(v) for k, v in angle_table.items()} if isinstance(angle_table, dict) else {}
+        )
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        angle = self.angles.get(gate, gate * self.pitch_deg)
+        self.position = angle
+        if self.servo is not None:
+            try:
+                self.servo(angle)
+            except Exception:  # noqa: BLE001 - servo opcional
+                pass
+        self.current_gate = gate
+        return True
+
+
+class IndexedSelector(_SelectorStrategy):
+    """Selector indexado: posiciones discretas con tabla de offsets opcional."""
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        offsets = config.get("index_offsets")
+        self.offsets = [float(v) for v in offsets] if isinstance(offsets, (list, tuple)) else []
+        self.index_pitch = float(config.get("index_pitch", 1.0))
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        if gate < len(self.offsets):
+            self.position = self.offsets[gate]
+        else:
+            self.position = gate * self.index_pitch
+        self.current_gate = gate
+        return True
+
+
+class MultiGearSelector(_SelectorStrategy):
+    """Selector multi-gear (Type-C): un motor de arrastre por gate/grupo.
+
+    El movimiento lo ejecuta el gear del gate seleccionado; aqui solo se
+    registra el gate activo y una posicion virtual.
+    """
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        self.gears_per_gate = int(config.get("gears_per_gate", 1))
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        self.position = float(gate)
+        self.current_gate = gate
+        return True
+
+
+class MacroSelector(_SelectorStrategy):
+    """Selector definido por macros G-code (paridad ``mmu_macro_selector``).
+
+    Delega la seleccion en una macro configurable (``selector_macro``) emitiendo
+    ``<macro> GATE=<n>``; si no hay emisor, solo registra la posicion.
+    """
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int,
+                 emit: Optional[Any] = None) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        self.macro_name = str(config.get("selector_macro", "MMU_SELECTOR_MOVE"))
+        self._emit = emit if emit is not None else config.get("emit")
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        self.position = float(gate)
+        self.current_gate = gate
+        if callable(self._emit):
+            try:
+                self._emit(f"{self.macro_name} GATE={gate}")
+            except Exception:  # noqa: BLE001 - macro opcional
+                pass
+        return True
+
+
+class LinearMultiGearSelector(_SelectorStrategy):
+    """Selector lineal multi-gear: pitch lineal + etapa de gear por gate/grupo."""
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        self.pitch = float(config.get("gate_pitch_mm", 22.5))
+        self.mg_step_mm = float(config.get("mg_step_mm", 0.0))
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        self.position = gate * self.pitch
+        self.current_gate = gate
+        return True
+
+
+class LinearServoSelector(_SelectorStrategy):
+    """Selector lineal con servo auxiliar (paridad ``linear_servo_selector``)."""
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int,
+                 servo: Optional[Any] = None) -> None:
+        super().__init__(motion, config)
+        self.gates = max(1, int(gates))
+        self.pitch = float(config.get("gate_pitch_mm", 22.5))
+        self.servo = servo
+        self.servo_active_angle = float(config.get("servo_active_angle", 90.0))
+        self.servo_idle_angle = float(config.get("servo_idle_angle", 0.0))
+
+    def select_gate(self, gate: int) -> bool:
+        if not 0 <= gate < self.gates:
+            return False
+        self.position = gate * self.pitch
+        self.current_gate = gate
+        if self.servo is not None:
+            try:
+                self.servo(self.servo_active_angle)
+            except Exception:  # noqa: BLE001
+                pass
+        return True
+
+    def home(self) -> bool:
+        if self.servo is not None:
+            try:
+                self.servo(self.servo_idle_angle)
+            except Exception:  # noqa: BLE001
+                pass
+        return super().home()
+
+
+class LinearMGServoSelector(LinearServoSelector):
+    """Selector lineal multi-gear con servo (paridad ``linear_mg_servo_selector``)."""
+
+    def __init__(self, motion: Motion, config: Dict[str, Any], gates: int,
+                 servo: Optional[Any] = None) -> None:
+        super().__init__(motion, config, gates, servo=servo)
+        self.mg_step_mm = float(config.get("mg_step_mm", 0.0))
+
+
 class Selector:
     """Fachada del selector. Selecciona la estrategia segun el perfil."""
 
@@ -120,6 +279,20 @@ class Selector:
             return LinearSelector(self.motion, cfg)
         if self.selector_type == "rotary":
             return RotarySelector(self.motion, cfg, self.gates)
+        if self.selector_type == "servo":
+            return ServoSelector(self.motion, cfg, self.gates)
+        if self.selector_type in ("indexed", "indexed_selector"):
+            return IndexedSelector(self.motion, cfg, self.gates)
+        if self.selector_type in ("multi_gear", "multigear", "type_c"):
+            return MultiGearSelector(self.motion, cfg, self.gates)
+        if self.selector_type == "macro":
+            return MacroSelector(self.motion, cfg, self.gates)
+        if self.selector_type in ("linear_mg", "linear_multigear"):
+            return LinearMultiGearSelector(self.motion, cfg, self.gates)
+        if self.selector_type == "linear_servo":
+            return LinearServoSelector(self.motion, cfg, self.gates)
+        if self.selector_type in ("linear_mg_servo", "linear_mgservo"):
+            return LinearMGServoSelector(self.motion, cfg, self.gates)
         return VirtualSelector(self.motion, cfg)
 
     # -- API publica --------------------------------------------------------
@@ -142,4 +315,11 @@ __all__ = [
     "LinearSelector",
     "RotarySelector",
     "VirtualSelector",
+    "ServoSelector",
+    "IndexedSelector",
+    "MultiGearSelector",
+    "MacroSelector",
+    "LinearMultiGearSelector",
+    "LinearServoSelector",
+    "LinearMGServoSelector",
 ]

@@ -1,0 +1,91 @@
+# Dog Matrix MMU - Definicion de placa
+# BIGTREETECH MMB CAN V1.0 (STM32G0B1CBT6, 4 drivers EZ, CAN + USB).
+#
+# Fuente: https://github.com/bigtreetech/MMB
+#         https://global.bttwiki.com/MMB%20CAN%20V1.0.html
+#         Firmware/sample-bigtreetech-mmb-canbus-v1.x.cfg
+#
+# Placa de 4 drivers. Admite ambas topologias: gear-per-gate de 4 bobinas
+# (DRIVER0..DRIVER3 = bobina 0..3) o selectora ERCF (SEL=DRIVER0, GEAR=DRIVER1).
+# Expone conector I2C dedicado (bus i2c3).
+schema_version: 1
+board_id: btt_mmb_can_v1_0
+display_name: BIGTREETECH MMB CAN V1.0
+happy_hare_board_type: MMB_1_0
+topology: both
+coils_per_unit: 4
+max_gates: 11
+dual_gate_sensors: true
+mcu:
+  name: mmu
+  transport: can
+  arch: stm32g0b1
+i2c_bus: i2c3
+i2c:
+  bus: i2c3
+  scl: PB3
+  sda: PB4
+  devices:
+    - humidity_temperature
+    - multiplexer
+    - rfid
+source_url: https://github.com/bigtreetech/MMB
+drivers:
+  - step: PB15
+    dir: PB14
+    enable: "!PA8"
+    uart: PA10
+    diag: PA3
+  - step: PD2
+    dir: PB13
+    enable: "!PD1"
+    uart: PC7
+    diag: PA4
+  - step: PD0
+    dir: PD3
+    enable: "!PA15"
+    uart: PC6
+    diag: PB9
+  - step: PB6
+    dir: PB7
+    enable: "!PB5"
+    uart: PA9
+    diag: PB8
+pins:
+  servo: PA0
+  gate_sensor: "^PA1"
+  neopixel: PA2
+  selector_endstop: "^PC15"
+  i2c_scl: PB3
+  i2c_sda: PB4
+  pre_gate:
+    - PC13
+    - PC14
+    - PB12
+    - PB11
+    - PB10
+    - PB2
+reserved_pins:
+  can_rx: PB0
+  can_tx: PB1
+  usb_dm: PA11
+  usb_dp: PA12
+  endstop_1: PA3
+  endstop_2: PA4
+  endstop_3: PB9
+  endstop_4: PB8
+capabilities:
+  selector: true
+  gear_per_gate: true
+  encoder: true
+  gate_sensors: true
+  servo: true
+  cutter: false
+  led: true
+  canbus: true
+  i2c: true
+notes: >-
+  E/S de los drivers en modo UART (TMC2209) o CS (SPI, bus spi1). DIAG comparte
+  pin con los endstops STP1-4. V1.0 se diferencia de V1.1 en el enable de
+  DRIVER0 (PA8 vs PB8) y el DIAG de DRIVER3 (PB8 vs PA8). El mapeo exacto de
+  selector_endstop/pre_gate sobre STP5-11 esta por confirmar contra el esquema.
