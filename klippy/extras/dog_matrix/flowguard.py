@@ -20,6 +20,7 @@ FLOW_OK = "ok"
 FLOW_DIVERGENCE = "divergence"
 FLOW_CLOG = "clog"
 FLOW_RUNOUT = "runout"
+FLOW_TANGLE = "tangle"  # nuevo: enredo en el spool
 
 DEFAULT_RATIO_THRESHOLD = 0.15
 DEFAULT_HYSTERESIS = 3  # violaciones consecutivas para confirmar
@@ -135,7 +136,10 @@ class FlowGuard:
     def _classify(requested_mm: float, measured_mm: float) -> str:
         if requested_mm > 0 and measured_mm <= 0.01:
             return FLOW_RUNOUT
-        if measured_mm <= requested_mm * 0.5:
+        if measured_mm <= requested_mm * 0.3:
+            # Movimiento muy reducido - podría ser enredo
+            if measured_mm > 0 and requested_mm > 0:
+                return FLOW_TANGLE  # Enredo detectado
             return FLOW_CLOG
         return FLOW_DIVERGENCE
 

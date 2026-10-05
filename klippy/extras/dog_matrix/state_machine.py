@@ -164,16 +164,26 @@ class StateMachine:
         )
         try:
             self.transition(MMUState.REQUESTED, operation_id)
+            self._emit_callback("_DM_ACTION_CHANGED", action="requested", state=self.state.value, operation_id=operation_id)
             self._phase(MMUState.VALIDATING, lambda: self._validate(gate, tool), result)
+            self._emit_callback("_DM_ACTION_CHANGED", action="validating", state=self.state.value)
             self._phase(MMUState.PREPARE, lambda: self._prepare(), result)
+            self._emit_callback("_DM_ACTION_CHANGED", action="prepare", state=self.state.value)
             if self._has_filament_loaded():
+                self._emit_callback("_DM_PRE_UNLOAD", action="pre_unload")
                 self._phase(MMUState.UNLOAD, lambda: self._unload(), result)
+                self._emit_callback("_DM_POST_UNLOAD", action="post_unload")
             self._phase(MMUState.SELECT, lambda: self._select(gate), result)
+            self._emit_callback("_DM_ACTION_CHANGED", action="select", state=self.state.value)
             self._phase(MMUState.LOAD, lambda: self._load(), result)
+            self._emit_callback("_DM_PRE_LOAD", action="pre_load")
             self._phase(MMUState.VERIFY, lambda: self._verify(), result)
+            self._emit_callback("_DM_POST_LOAD", action="post_load")
             if self._should_purge():
                 self._phase(MMUState.PURGE, lambda: self._purge(), result)
+                self._emit_callback("_DM_POST_FORM_TIP", action="post_form_tip")
             self._phase(MMUState.COMMIT, lambda: self._commit(gate, tool), result)
+            self._emit_callback("_DM_ACTION_CHANGED", action="commit", state=self.state.value)
 
             self.transition(MMUState.COMPLETED)
             result.success = True
@@ -299,6 +309,10 @@ class StateMachine:
             operation_id=result.operation_id,
             step=self.last_confirmed_step,
         )
+
+    def _emit_callback(self, callback_name: str, **kwargs: Any) -> None:
+        """Emite un callback de macro de ciclo de vida."""
+        self._emit("info", "callback_invoke", callback=callback_name, **kwargs)
 
     def _emit(self, level: str, event: str, **kwargs: Any) -> None:
         diagnostics = getattr(self.core, "diagnostics", None)

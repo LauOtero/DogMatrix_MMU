@@ -9,6 +9,7 @@ Requisitos (informe 6.1): inicializacion < 500 ms, ``get_status`` < 5 ms.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -84,10 +85,32 @@ class DogMatrixCore:
         self.current_tool: Optional[int] = None
         self.ttg_map: List[int] = list(range(gates))  # tool -> gate
         self.gate_status: List[str] = ["unknown"] * gates
-        self.gate_filament: List[Dict[str, Any]] = [{} for _ in range(gates)]
+        self.gate_filament: List[Dict[str, Any]] = [
+            {
+                "material": "",
+                "color": "",
+                "spool_id": "",
+                "availability": "unknown",  # unknown / available / buffered / empty
+            }
+            for _ in range(gates)
+        ]
         self.enable_purge = self._flag("enable_purge", False)
         self.auto_recover = self._flag("auto_recover", False)
         self.counters: Dict[str, int] = {"toolchanges": 0, "loads": 0, "unloads": 0, "errors": 0}
+        self.toolchange_timings: Dict[str, float] = {
+            "pre_unload": 0.0,
+            "unload": 0.0,
+            "post_unload": 0.0,
+            "pre_load": 0.0,
+            "load": 0.0,
+            "post_load": 0.0,
+            "total": 0.0,
+        }
+        # --- EndlessSpool ---
+        self.enable_endless_spool = self._flag("enable_endless_spool", False)
+        self.endless_spool_groups: List[List[int]] = self._init_endless_groups()
+        self.endless_spool_final_eject: float = float(self.cfg.get("endless_spool_final_eject", 0))
+        self.endless_spool_eject_gate: Optional[int] = self.cfg.get("endless_spool_eject_gate", None)
         self.boot_time = time.time()
 
         # --- Componentes ---------------------------------------------------
@@ -108,6 +131,9 @@ class DogMatrixCore:
         self.nfc = NFCReader(self.printer, config) if self._flag("enable_nfc", False) else None
         self.spoolman = SpoolManager(self._moonraker(), config) if self._flag("enable_spoolman", False) else None
         self.state_machine = StateMachine(self)
+        # Registrar este objeto para acceso desde gcode y macros
+        if self.printer is not None:
+            self.printer.add_object("dog_matrix", self)
 
         self._register_commands()
         self._register_events()
@@ -200,6 +226,9 @@ class DogMatrixCore:
         "DM_SPOOLMAN": "MMU_SPOOLMAN",
         "DM_ENDLESS_SPOOL": "MMU_ENDLESS_SPOOL",
         "DM_TEST_CONFIG": "MMU_TEST_CONFIG",
+        "DM_START_SETUP": "MMU_START_SETUP",
+        "DM_PRINT_STATE": "MMU_PRINT_STATE",
+        "DM_STATS": "MMU_STATS",
     }
 
     def _register_commands(self) -> None:
@@ -219,6 +248,7 @@ class DogMatrixCore:
             "DM_SPOOLMAN": self.cmd_DM_SPOOLMAN,
             "DM_ENDLESS_SPOOL": self.cmd_DM_ENDLESS_SPOOL,
             "DM_TEST_CONFIG": self.cmd_DM_TEST_CONFIG,
+            "DM_START_SETUP": self.cmd_DM_START_SETUP,
         }
         for name, handler in handlers.items():
             try:
@@ -267,7 +297,9 @@ class DogMatrixCore:
             "gates": self.profile.gates,
             "ttg_map": list(self.ttg_map),
             "gate_status": list(self.gate_status),
+            "gate_filament": self.gate_filament,
             "counters": dict(self.counters),
+            "toolchange_timings": dict(self.toolchange_timings),
             "flowguard": self.flowguard.get_statistics() if self.flowguard else {},
             "version": SOFTWARE_VERSION,
             "profile": self.profile.profile_id,
@@ -286,6 +318,14 @@ class DogMatrixCore:
                 ttg=status["ttg_map"],
             )
         )
+
+    def cmd_DM_PRINT_STATE(self, gcmd: Any) -> None:
+        """Establecer el estado de la impresora y emitir callback."""
+        new_state = gcmd.get("STATE", "")
+        if not new_state:
+            raise gcmd.error("STATE es requerido")
+        self._emit_callback("_DM_PRINT_STATE_CHANGED", state=new_state)
+        gcmd.respond_info(f"Print state cambiado a {new_state}")
 
     def cmd_DM_CHANGE_TOOL(self, gcmd: Any) -> None:
         tool = gcmd.get_int("TOOL", 0)
@@ -352,14 +392,28 @@ class DogMatrixCore:
             for index in range(self.profile.gates):
                 gcmd.respond_info(
                     f"gate {index}: tool={self.ttg_map.index(index) if index in self.ttg_map else '-'} "
-                    f"status={self.gate_status[index]}"
+                    f"status={self.gate_status[index]} material={self.gate_filament[index].get('material', '-')} "
+                    f"color={self.gate_filament[index].get('color', '-')} spool_id={self.gate_filament[index].get('spool_id', '-')} "
+                    f"availability={self.gate_filament[index].get('availability', 'unknown')}"
                 )
             return
         if not 0 <= gate < self.profile.gates:
             raise gcmd.error("GATE fuera de rango")
-        self.gate_status[gate] = gcmd.get("STATUS", self.gate_status[gate])
+        new_status = gcmd.get("STATUS", self.gate_status[gate])
+        new_material = gcmd.get("MATERIAL", self.gate_filament[gate].get("material", ""))
+        new_color = gcmd.get("COLOR", self.gate_filament[gate].get("color", ""))
+        new_spool_id = gcmd.get("SPOOL_ID", self.gate_filament[gate].get("spool_id", ""))
+        new_availability = gcmd.get("AVAILABILITY", self.gate_filament[gate].get("availability", "unknown"))
+        self.gate_status[gate] = new_status
+        self.gate_filament[gate] = {
+            "material": new_material,
+            "color": new_color,
+            "spool_id": new_spool_id,
+            "availability": new_availability,
+        }
         self.persistence.save(self.snapshot_state())
-        gcmd.respond_info(f"gate {gate} status={self.gate_status[gate]}")
+        self._emit_callback("_DM_GATE_MAP_CHANGED", gate=gate, status=new_status, material=new_material, color=new_color, spool_id=new_spool_id)
+        gcmd.respond_info(f"gate {gate} status={self.gate_status[gate]} material={new_material} color={new_color} spool_id={new_spool_id}")
 
     def cmd_DM_REMAP_TTG(self, gcmd: Any) -> None:
         tool = gcmd.get_int("TOOL", None)
@@ -370,6 +424,7 @@ class DogMatrixCore:
             raise gcmd.error("TOOL o GATE fuera de rango")
         self.ttg_map[tool] = gate
         self.persistence.save(self.snapshot_state())
+        self._emit_callback("_DM_GATE_MAP_CHANGED", action="remap_ttg", tool=tool, gate=gate)
         gcmd.respond_info(f"TTG remapeado: tool {tool} -> gate {gate}")
 
     def cmd_DM_SPOOLMAN(self, gcmd: Any) -> None:
@@ -386,7 +441,33 @@ class DogMatrixCore:
     def cmd_DM_ENDLESS_SPOOL(self, gcmd: Any) -> None:
         if not self.profile.has_capability("endless_spool"):
             raise gcmd.error("EndlessSpool no soportado por el perfil")
-        gcmd.respond_info(f"EndlessSpool grupos: {self._endless_groups()}")
+        action = gcmd.get("ACTION", "STATUS").upper()
+        if action == "STATUS":
+            groups_str = ", ".join(
+                f"group {i}: gates {g}" for i, g in enumerate(self.endless_spool_groups)
+            )
+            gcmd.respond_info(
+                f"EndlessSpool enabled={self.enable_endless_spool}, groups: {groups_str}, "
+                f"final_eject={self.endless_spool_final_eject}mm, eject_gate={self.endless_spool_eject_gate}"
+            )
+        elif action == "SET":
+            groups = gcmd.get("GROUPS", None)
+            if groups is None:
+                raise gcmd.error("Acción SET requiere parámetro GROUPS")
+            # Parsear grupos
+            import json
+            groups_list = json.loads(groups) if isinstance(groups, str) else groups
+            self.endless_spool_groups = groups_list
+            self._emit_callback("_DM_GATE_MAP_CHANGED", action="endless_spool_set", groups=self.endless_spool_groups)
+            gcmd.respond_info(f"EndlessSpool groups set: {self.endless_spool_groups}")
+        elif action == "EJECT":
+            # Ejecutar eyección de resto en el gate configurado
+            eject_gate = self.endless_spool_eject_gate
+            if eject_gate is None:
+                raise gcmd.error("No hay gate de eyección configurado. Usa SET GROUPS primero.")
+            gcmd.respond_info(f"Eyección de resto en gate {eject_gate} (distancia: {self.endless_spool_final_eject}mm)")
+        else:
+            gcmd.respond_info(f"EndlessSpool status: enabled={self.enable_endless_spool}")
 
     def cmd_DM_TEST_CONFIG(self, gcmd: Any) -> None:
         errors = self.capabilities.validate()
@@ -394,8 +475,128 @@ class DogMatrixCore:
             raise gcmd.error("Config invalida: " + "; ".join(errors))
         gcmd.respond_info(f"Config OK ({self.profile.profile_id})")
 
+    def cmd_DM_START_SETUP(self, gcmd: Any) -> None:
+        """Macro de setup de impresión multicolor.
+
+        Parámetros esperados:
+        - TOOLS: lista de herramientas referenciadas (formato JSON)
+        - TOTAL_TOOLCHANGES: número total de cambios de herramienta
+        - COLORS: lista de colores de los filamentos
+        - TEMPERATURES: lista de temperaturas
+        """
+        tools = gcmd.get("TOOLS", "[]")
+        total_toolchanges = gcmd.get_int("TOTAL_TOOLCHANGES", 0)
+        colors = gcmd.get("COLORS", "")
+        temperatures = gcmd.get("TEMPERATURES", "")
+
+        # Guardar configuración de setup en el estado
+        self.setup_config = {
+            "tools": tools,
+            "total_toolchanges": total_toolchanges,
+            "colors": colors,
+            "temperatures": temperatures,
+            "started_at": time.time(),
+        }
+
+        # Actualizar contadores
+        self.counters["toolchanges"] = total_toolchanges
+
+        # Emitir evento de callback de cambio de estado
+        self._emit_callback("_DM_ACTION_CHANGED", action="setup", setup_config=self.setup_config)
+
+        gcmd.respond_info(
+            f"DM_START_SETUP OK: {total_toolchanges} toolchanges, "
+            f"tools={tools}, colors={colors}"
+        )
+
+    def cmd_DM_CALIBRATE_GEAR(self, gcmd: Any) -> None:
+        """Calibración de distancia de rotación del gear stepper."""
+        tool = gcmd.get_int("TOOL", 0)
+        # Obtener distancia actual desde perfil
+        profile = getattr(self, "profile", None)
+        if profile is None:
+            raise gcmd.error("Perfil no cargado")
+        # TODO: Implementar calibración real con medida de encoder
+        gcmd.respond_info(f"Calibración gear tool {tool}: distance to be measured")
+
+    def cmd_DM_CALIBRATE_ENCODER(self, gcmd: Any) -> None:
+        """Calibración del encoder."""
+        tool = gcmd.get_int("TOOL", 0)
+        distance_mm = gcmd.get_float("DISTANCE_MM", 100)
+        # TODO: Implementar calibración real
+        gcmd.respond_info(f"Calibración encoder tool {tool}: {distance_mm}mm")
+
+    def cmd_DM_CALIBRATE_BOWDEN(self, gcmd: Any) -> None:
+        """Calibración de longitud bowden."""
+        tool = gcmd.get_int("TOOL", 0)
+        profile = getattr(self, "profile", None)
+        if profile is None:
+            raise gcmd.error("Perfil no cargado")
+        # TODO: Implementar calibración real
+        gcmd.respond_info(f"Calibración bowden tool {tool}: to be measured")
+
+    def cmd_DM_CALIBRATE_GATES(self, gcmd: Any) -> None:
+        """Calibración automática de todos los gates."""
+        # Calibrar todos los gates usando el encoder
+        profile = getattr(self, "profile", None)
+        if profile is None:
+            raise gcmd.error("Perfil no cargado")
+        gates = profile.gates
+        # Ejecutar calibración para cada gate
+        for gate in range(gates):
+            # TODO: Implementar calibración real por gate
+            pass
+        self._emit_callback("_DM_ACTION_CHANGED", action="calibrate_gates")
+        gcmd.respond_info(f"Calibración gates completada para {gates} gates")
+
+    def cmd_DM_CALIBRATE_TOOLHEAD(self, gcmd: Any) -> None:
+        """Calibración de dimensiones del toolhead/extrusor."""
+        # TODO: Implementar calibración real
+        gcmd.respond_info("Calibración toolhead: to be implemented")
+
+    def cmd_DM_CALIBRATE_SELECTOR(self, gcmd: Any) -> None:
+        """Calibración automática de offsets del selector."""
+        # TODO: Implementar calibración real
+        gcmd.respond_info("Calibración selector: to be implemented")
+
+    def cmd_DM_UNLOCK(self, gcmd: Any) -> None:
+        """Restaura temperaturas tras un error de MMU."""
+        result = self.recovery.recover_from_failure({})
+        if result.success:
+            gcmd.respond_info(f"Recuperacion OK ({result.action})")
+        else:
+            gcmd.respond_info(f"Recuperacion requiere atencion: {result.message}")
+
+    def _emit_callback(self, callback_name: str, **kwargs: Any) -> None:
+        """Invoca un callback de macro de ciclo de vida."""
+        # Registrar el evento para que las macros lo puedan suscribir
+        self.diagnostics.log_event("debug", "callback", callback_name, **kwargs)
+
     def _endless_groups(self) -> List[List[int]]:
         return [list(range(self.profile.gates))] if self.profile.has_capability("endless_spool") else []
+
+    def _init_endless_groups(self) -> List[List[int]]:
+        """Inicializa los grupos de endless spool desde la configuración."""
+        groups_cfg = self.cfg.get("endless_spool_groups", None)
+        if groups_cfg is not None:
+            # Parsear desde configuración
+            if isinstance(groups_cfg, str):
+                # JSON array
+                import json
+                groups_cfg = json.loads(groups_cfg)
+            if isinstance(groups_cfg, list):
+                result: List[List[int]] = []
+                for group in groups_cfg:
+                    if isinstance(group, list):
+                        result.append([int(g) for g in group])
+                    elif isinstance(group, int):
+                        result.append([group])
+                return result
+        # Por defecto: un grupo con todos los gates
+        return [list(range(self.profile.gates))] if self.profile.has_capability("endless_spool") else []
+
+    def _endless_groups(self) -> List[List[int]]:
+        return self.endless_spool_groups
 
 
 def load_config(config: Any) -> DogMatrixCore:

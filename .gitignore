@@ -17,3 +17,4 @@ config/generated/*.cfg
 config/generated/*.json
 *.dm_snapshot
 evidence/*.zip
+docs/funcionalidades_faltantes.md

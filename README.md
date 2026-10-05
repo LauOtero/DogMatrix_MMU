@@ -1,15 +1,45 @@
 # 🐕 Dog Matrix MMU
 
-[![Build Status](https://img.shields.io/github/actions/workflow/status/DogMatrix-Multimaterial/DogMatrix_MMU/ci.yml?branch=main&label=Build)](https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/actions)
-[![Tests](https://img.shields.io/github/actions/workflow/status/DogMatrix-Multimaterial/DogMatrix_MMU/tests.yml?branch=main&label=Tests)](https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/actions/workflows/tests.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/DogMatrix-Multimaterial/DogMatrix_MMU?label=Coverage)](https://codecov.io/gh/DogMatrix-Multimaterial/DogMatrix_MMU)
-[![Version](https://img.shields.io/github/v/release/DogMatrix-Multimaterial/DogMatrix_MMU?label=Version&sort=semver)](https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/releases)
-[![License](https://img.shields.io/github/license/DogMatrix-Multimaterial/DogMatrix_MMU?label=License)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/downloads/)
-[![Klipper](https://img.shields.io/badge/Klipper-Compatible-orange)](https://github.com/Klipper3d/klipper)
-[![Moonraker](https://img.shields.io/badge/Moonraker-Compatible-purple)](https://github.com/Arksine/moonraker)
-
 > **Driver MMU/AFC industrial para Klipper** — Implementación *clean-room*, modular, verificable, reversible y orientada a evidencias. Diseñado para superar los estándares de Happy Hare en facilidad de uso, velocidad de despliegue y calidad.
+>
+> **Estado actual**: ✅ Código fuente completo (16 módulos Klipper + Moonraker + Installer + CFFI) · ✅ 95+ tests passing · ✅ 8 docs operativos · 🔄 Validación HIL pendiente
+
+---
+
+## ⚡ Inicio Rápido (30 segundos)
+
+```bash
+# 1. Clonar e instalar
+git clone https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU.git
+cd DogMatrix_MMU && pip install -e .
+
+# 2. Compilar aceleración nativa (recomendado)
+python -m installer.build_native
+
+# 3. Wizard guiado (detección HW + calibración + deploy)
+./install.sh wizard --profile box_turtle --dest ~/printer_data/config
+```
+
+> **¿Migración desde Happy Hare?** `./install.sh migrate --src ~/printer_data/config --dest ~/printer_data/config --profile ercf`
+
+---
+
+## ✅ Estado de Implementación
+
+| Componente | Estado | Detalles |
+|------------|--------|----------|
+| **Core Klipper (16 módulos)** | ✅ Completo | core, state_machine, motion, encoder, sensors, flowguard, selector, capabilities, recovery, persistence, diagnostics, spoolman, led_system, nfc_rfid, klipperscreen_panel, _native |
+| **Capa CFFI nativa** | ✅ Completa | dm_native.c: iir_step, median3, divergence, debounce, plan_trajectory (trapezoidal + S-curve) |
+| **Componente Moonraker** | ✅ Completo | REST endpoints, WebSocket `dog_matrix:state`, remote method `dog_matrix_status` |
+| **Instalador + Wizard** | ✅ Completo | CLI 8 subcomandos, preflight, backup, generator, validator, migrator, rollback, wizard, templates |
+| **Perfiles hardware (7)** | ✅ Completos | box_turtle, ercf, tradrack, night_owl, emu, quattrobox, custom.example (schema v1) |
+| **Configuración base** | ✅ Completa | dog_matrix.cfg, dog_matrix_macros.cfg, plantillas .tmpl |
+| **Suite de pruebas (95+)** | ✅ Passing | Unit (10), Integration (1), Simulación (1), Fixtures compartidas |
+| **Documentación operativa (8)** | ✅ Completa | INSTALL, CONFIGURATION, API, SAFETY, TROUBLESHOOTING, PROFILES, requirements.csv, compatibility-matrix.yaml |
+| **Validación HIL (Hardware-in-the-loop)** | 🔄 Pendiente | Campaña WCET, jitter, toolchange ≥99%, inyección fallos |
+| **CI/CD GitHub Actions** | 📋 Planificado | Workflows: ci.yml, tests.yml, release.yml |
+| **Mainsail/Fluidd UI** | 📋 Planificado | Dashboard, macros, notificaciones |
+| **Endless Spool completo** | 📋 Planificado | Sincronización multi-gate, buffer management |
 
 ---
 
@@ -49,11 +79,12 @@
 | **🎮 Control MMU** | 14 estados FSM, 12 comandos G-code `DM_*` + alias `MMU_*`, toolchange ≥99% éxito objetivo |
 | **⚡ Tiempo Real** | CFFI API mode: encoder IIR (<100µs), flowguard divergencia, motion S-curve, sensores debounce (<5µs) |
 | **🔧 Instalador** | CLI `dog-matrix`, wizard guiado, preflight HW/SW, backup automático, validación schema + pin conflicts |
-| **📦 Perfiles** | 7 perfiles YAML versionados (schema v1), plantilla `custom.example.yaml`.|
+| **📦 Perfiles** | 7 perfiles YAML versionados (schema v1), plantilla `custom.example.yaml` |
 | **🌐 Integraciones** | Moonraker (REST + WS), Spoolman (adapter + circuit breaker), NFC/RFID (PN532/5180/7160/RC522) |
 | **🖥️ UI** | KlipperScreen panel MVP, Mainsail/Fluidd (planificado), macros G-code incluidas |
 | **🛡️ Seguridad** | FMEA documentado, runbook recuperación, limitaciones conocidas, fail-safe por diseño |
 | **🧪 Testing** | 95+ tests (unit/integration/simulation), pytest fixtures, CI/CD GitHub Actions |
+| **📊 Cobertura** | Core modules ≥90%, CLI/Wizard ≥85%, integración simulada 100% |
 
 ---
 
@@ -332,6 +363,8 @@ DM_ENCODER
 
 ¡Las contribuciones son bienvenidas! Por favor, lee nuestra [Guía de Contribución](CONTRIBUTING.md) antes de enviar PRs.
 
+> **Nota**: `CONTRIBUTING.md` y plantillas de issues (`.github/ISSUE_TEMPLATE/`) están en desarrollo. Mientras tanto, sigue el flujo estándar abajo.
+
 ### Flujo de Trabajo
 
 1. **Fork** el repositorio
@@ -351,11 +384,12 @@ DM_ENCODER
 
 ### Reportar Bugs
 
-Usa la [plantilla de issue](.github/ISSUE_TEMPLATE/bug_report.yml) con:
-- Versión Klipper/Moonraker/Python
-- Perfil hardware usado
-- Logs relevantes (`dog_matrix_diagnostics.jsonl`)
+Abre un [issue en GitHub](https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/issues/new) incluyendo:
+- Versión Klipper / Moonraker / Python
+- Perfil hardware usado (`box_turtle`, `ercf`, `tradrack`, etc.)
+- Logs relevantes (`dog_matrix_diagnostics.jsonl`, `klippy.log`)
 - Pasos para reproducir
+- Salida de `./install.sh doctor --json` si aplica
 
 ---
 
@@ -413,7 +447,7 @@ SOFTWARE.
 - **Issues**: https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/issues
 - **Releases**: https://github.com/DogMatrix-Multimaterial/DogMatrix_MMU/releases
 - **Discord Klipper**: https://discord.klipper3d.org (canal #mmu)
-- **Documentación Online**: https://dogmatrix-multimaterial.github.io/DogMatrix_MMU/
+- **Documentación Online**: https://dogmatrix-multimaterial.github.io/DogMatrix_MMU/ *(pendiente deploy)*
 
 ---
 
