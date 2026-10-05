@@ -38,8 +38,20 @@ python -m installer.build_native
 | **Documentación operativa (8)** | ✅ Completa | INSTALL, CONFIGURATION, API, SAFETY, TROUBLESHOOTING, PROFILES, requirements.csv, compatibility-matrix.yaml |
 | **Validación HIL (Hardware-in-the-loop)** | 🔄 Pendiente | Campaña WCET, jitter, toolchange ≥99%, inyección fallos |
 | **CI/CD GitHub Actions** | 📋 Planificado | Workflows: ci.yml, tests.yml, release.yml |
-| **Mainsail/Fluidd UI** | 📋 Planificado | Dashboard, macros, notificaciones |
-| **Endless Spool completo** | 📋 Planificado | Sincronización multi-gate, buffer management |
+| **Mainsail/Fluidd UI** | � Parcial | Dashboard básico, macros `DM_*`, notificaciones `dog_matrix:state` |
+| **Endless Spool completo** | ✅ Implementado | Sincronización multi-gate, buffer management, grupos configurables, eyección automática |
++| **Sync-Feedback Buffer + Tangle Prevention** | ✅ Implementado | Detección enredos via CFFI, buffer compresión/tensión, clasificación FLOW_TANGLE |
++| **Calibración Automatizada** | ✅ Implementada | 6 comandos `DM_CALIBRATE_*` (gear, encoder, bowden, gates, toolhead, selector) |
++| **eSpooler DC** | ✅ Implementado | Control PWM/digital, escala, exponente, comandos `DM_ESPOOLER` |
++| **Tip Forming / Cutting** | ✅ Implementado | Máquina estados 5 pasos `DM_TIP_FORMING`, corte mecánico support |
++| **Purga Inteligente** | ✅ Implementado | Cálculo volúmenes `mm³`, soporte Blobifier, z-hop, ooze reduction |
++| **Gestión Ambiental** | ✅ Implementado | Control heater/dryer, fan enclosure, monitoreo temp/humedad |
++| **Botones Eyección Físicos** | ✅ Implementado | GPIO buttons con debounce, comandos `DM_EJECTION_*` |
++| **Macros de Callback** | ✅ Implementado | `_DM_ACTION_CHANGED`, `_DM_PRINT_STATE_CHANGED`, `_DM_GATE_MAP_CHANGED` |
++| **DM_UNLOCK** | ✅ Implementado | Recupera temperaturas tras error MMU |
++| **Spoolman Bidireccional** | ✅ Implementado | `notify_toolchange`, gate map sync, `NEXT_SPOOLID` |
++| **Preprocesador G-code** | ✅ Implementado | Moonraker endpoint `/preprocess`, extrae `!referenced_tools!` |
++| **NFC/RFID Avanzado** | ✅ Implementado | Multi-chip PN532/5180/7160/RC522, flujo NFC→Spoolman→Gate Map |
 
 ---
 
@@ -68,6 +80,18 @@ python -m installer.build_native
 - **Instalación automatizada** con wizard interactivo, preflight checks, generación determinista de configs y rollback atómico
 - **Compatibilidad total** con perfiles de hardware populares (ERCF, Tradrack, Night Owl, E3D, QuattroBox, etc.)
 - **Integración nativa** con Moonraker, Spoolman, NFC/RFID, KlipperScreen y Mainsail/Fluidd
++- **Integración nativa** con Moonraker, Spoolman, NFC/RFID, KlipperScreen y Mainsail/Fluidd
++- **Spoolman bidireccional**: notificación uso, gate map sync, `NEXT_SPOOLID`
++- **eSpooler DC**: control PWM/digital, rebobinado asistido, escala/exponente
++- **Tip Forming**: formación térmica 5 pasos (`DM_TIP_FORMING`)
++- **Purga Inteligente**: volúmenes `mm³`, Blobifier, `DM_PURGE`
++- **Gestión Ambiental**: heater/dryer, fan enclosure, temp/humedad monitoring
++- **Botones Eyección Físicos**: GPIO con debounce, `DM_EJECTION_*`
++- **Macros Callback**: `_DM_ACTION_CHANGED`, `_DM_PRINT_STATE_CHANGED`, etc.
++- **Preprocesador G-code**: Moonraker `/preprocess`, `!referenced_tools!`
++- **NFC/RFID Avanzado**: multi-chip PN532/5180/7160/RC522, flujo NFC→Spoolman→Gate
++- **Sync-Feedback Buffer**: detección enredos `FLOW_TANGLE`, prevención activa
++- **Tool-to-Gate Mapping**: remapeo dinámico `DM_REMAP_TTG`, atributos por gate
 - **Evidencia y trazabilidad** completa: logging JSON Lines, evidence bundles firmados HMAC, snapshots con checksum SHA-256
 
 ---
@@ -83,6 +107,10 @@ python -m installer.build_native
 | **🌐 Integraciones** | Moonraker (REST + WS), Spoolman (adapter + circuit breaker), NFC/RFID (PN532/5180/7160/RC522) |
 | **🖥️ UI** | KlipperScreen panel MVP, Mainsail/Fluidd (planificado), macros G-code incluidas |
 | **🛡️ Seguridad** | FMEA documentado, runbook recuperación, limitaciones conocidas, fail-safe por diseño |
++| **🧪 Testing & Validación** | 95+ tests (unit/integration/sim), HIL campaign pending, stats `DM_STATS` |
++| **📊 Estadísticas** | Contadores toolchange, timings por fase, `DM_STATS`, persistencia SHA-256 |
++| **🌐 Integraciones Completa** | Spoolman bidireccional, eSpooler DC, ambiente, tip forming, NFC multi-chip |
++| **🎛️ Personalización** | Macros callback (`_DM_*`), perfiles configurables, G-code extensible |
 | **🧪 Testing** | 95+ tests (unit/integration/simulation), pytest fixtures, CI/CD GitHub Actions |
 | **📊 Cobertura** | Core modules ≥90%, CLI/Wizard ≥85%, integración simulada 100% |
 
@@ -225,6 +253,24 @@ python -m pytest tests/simulation/test_toolchange.py -v
 | `DM_SPOOLMAN` | `MMU_SPOOLMAN` | Sincronización/inventario Spoolman |
 | `DM_ENDLESS_SPOOL` | `MMU_ENDLESS_SPOOL` | Gestión endless spool |
 | `DM_TEST_CONFIG` | `MMU_TEST_CONFIG` | Validación configuración activa |
+| `DM_START_SETUP` | `MMU_START_SETUP` | Macro setup impresión multicolor (tools, colors, temps) |
+| `DM_PRINT_STATE` | `MMU_PRINT_STATE` | Establecer estado de impresión y emitir callback |
+| `DM_STATS` | `MMU_STATS` | Estadísticas detalladas toolchange y gate |
+| `DM_CALIBRATE_GEAR` | `MMU_CALIBRATE_GEAR` | Calibración distancia rotation gear stepper |
+| `DM_CALIBRATE_ENCODER` | `MMU_CALIBRATE_ENCODER` | Calibración encoder con distancia medida |
+| `DM_CALIBRATE_BOWDEN` | `MMU_CALIBRATE_BOWDEN` | Calibración longitud bowden |
+| `DM_CALIBRATE_GATES` | `MMU_CALIBRATE_GATES` | Calibración automática todos los gates |
+| `DM_CALIBRATE_TOOLHEAD` | `MMU_CALIBRATE_TOOLHEAD` | Calibración dimensiones toolhead/extrusor |
+| `DM_CALIBRATE_SELECTOR` | `MMU_CALIBRATE_SELECTOR` | Calibración offsets selector automática |
+| `DM_ESPOOLER` | `MMU_ESPOOLER` | Control eSpooler DC (FORWARD/REVERSE/STOP/STATUS) |
+| `DM_TIP_FORMING` | `MMU_TIP_FORMING` | Formación térmica de punta (START/STEP/STATUS) |
+| `DM_PURGE` | `MMU_PURGE` | Ejecutar purga calcular volumen mm³ |
+| `DM_UNLOCK` | `MMU_UNLOCK` | Recuperar temperaturas tras error MMU |
+| `DM_EJECTION_LOAD` | `MMU_EJECTION_LOAD` | Botón físico: carga filamento |
+| `DM_EJECTION_UNLOAD` | `MMU_EJECTION_UNLOAD` | Botón físico: descarga filamento |
+| `DM_EJECTION_EJECT` | `MMU_EJECTION_EJECT` | Botón físico: eyección filamento |
+| `DM_REMAP_TTG` | `MMU_REMAP_TTG` | Remapeo tool→gate en caliente |
+| `DM_GATE_MAP` | `MMU_GATE_MAP` | Mapeo gate↔tool con atributos (material, color, spool_id) |
 
 ### Ejemplo: Cambio de Herramienta T0 → T1
 
@@ -355,7 +401,8 @@ DM_ENCODER
 | **PROFILES.md** | Detalle de 7 perfiles hardware, customización, validación | [PROFILES.md](docs/PROFILES.md) |
 | **requirements.csv** | Matriz de requisitos trazables (funcionales, no funcionales, restricciones) | [requirements.csv](docs/requirements.csv) |
 | **compatibility-matrix.yaml** | Matriz compatibilidad MMU×Klipper×Moonraker×Features | [compatibility-matrix.yaml](docs/compatibility-matrix.yaml) |
-| **Informe Técnico** | Documento maestro de arquitectura y decisiones (INF-ENG-DM-006) | [informe dogmatrix-mmu.md](docs/informe%20dogmatrix-mmu.md) |
+| **funcionalidades_faltantes.md** | Plan de implementación 18 funcionalidades en 4 fases (Fase 1-4 completadas) | [funcionalidades_faltantes.md](docs/funcionalidades_faltantes.md) |
+| **INF-ENG-DM-006** | Documento maestro de arquitectura y decisiones técnicas | [informe dogmatrix-mmu.md](docs/informe%20dogmatrix-mmu.md) |
 
 ---
 
