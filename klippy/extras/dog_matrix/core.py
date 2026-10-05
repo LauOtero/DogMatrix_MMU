@@ -130,6 +130,11 @@ class DogMatrixCore:
         self.led = LEDSystem(self.printer, config, profile=self.profile) if self._flag("enable_led", True) else None
         self.nfc = NFCReader(self.printer, config) if self._flag("enable_nfc", False) else None
         self.spoolman = SpoolManager(self._moonraker(), config) if self._flag("enable_spoolman", False) else None
+        self.espooler = ESpooler(config, profile=self.profile) if self._flag("enable_espooler", False) else None
+        self.tip_former = TipFormer(config, profile=self.profile) if self._flag("enable_tip_forming", False) else None
+        self.purge_manager = PurgeManager(config, profile=self.profile) if self._flag("enable_purge", False) else None
+        self.environment = EnvironmentManager(config, profile=self.profile) if self._flag("enable_environment", False) else None
+        self.ejection_buttons = EjectionButtons(config, profile=self.profile) if self._flag("enable_ejection_buttons", False) else None
         self.state_machine = StateMachine(self)
         # Registrar este objeto para acceso desde gcode y macros
         if self.printer is not None:
@@ -567,13 +572,86 @@ class DogMatrixCore:
         else:
             gcmd.respond_info(f"Recuperacion requiere atencion: {result.message}")
 
+    def cmd_DM_ESPOOLER(self, gcmd: Any) -> None:
+        """Control del eSpooler DC."""
+        action = gcmd.get("ACTION", "STATUS").upper()
+        if action == "STATUS":
+            gcmd.respond_info(f"eSpooler: {self.espooler.get_status() if self.espooler else 'deshabilitado'}")
+        elif action == "FORWARD":
+            speed = gcmd.get_float("SPEED", None)
+            if self.espooler:
+                self.espooler.forward(speed)
+                gcmd.respond_info("eSpooler forwards")
+            else:
+                gcmd.respond_info("eSpooler deshabilitado")
+        elif action == "REVERSE":
+            speed = gcmd.get_float("SPEED", None)
+            if self.espooler:
+                self.espooler.reverse(speed)
+                gcmd.respond_info("eSpooler reverse")
+            else:
+                gcmd.respond_info("eSpooler deshabilitado")
+        elif action == "STOP":
+            if self.espooler:
+                self.espooler.stop()
+                gcmd.respond_info("eSpooler stopped")
+            else:
+                gcmd.respond_info("eSpooler deshabilitado")
+        else:
+            gcmd.respond_info("Accion no soportada")
+
+    def cmd_DM_TIP_FORMING(self, gcmd: Any) -> None:
+        """Iniciar o controlar formación de punta."""
+        action = gcmd.get("ACTION", "START").upper()
+        if action == "START":
+            if hasattr(self, "tip_former") and self.tip_former:
+                result = self.tip_former.start()
+                gcmd.respond_info(f"Formacion de punta iniciada: {result.message}")
+            else:
+                gcmd.respond_info("Modulo de formation no inicializado")
+        elif action == "STEP":
+            if hasattr(self, "tip_former") and self.tip_former:
+                # Avanzar un paso en la FSM
+                # Determinar siguiente paso basado en estado actual
+                current = self.tip_former.state
+                if current == "idle" or current == "committed":
+                    result = self.tip_former.start()
+                elif "ramming" in current:
+                    result = self.tip_former.step_ramming()
+                elif "cooling" in current:
+                    # Simular move de cooling
+                    result = self.tip_former.step_cooling()
+                elif "skinnydip" in current:
+                    result = self.tip_former.step_skinnydip()
+                else:
+                    result = TipFormingResult(success=False, state="idle", step="unknown", message="Estado desconocido")
+                gcmd.respond_info(f"Formacion paso: {result.message}")
+            else:
+                gcmd.respond_info("Modulo de formation no inicializado")
+        elif action == "STATUS":
+            if hasattr(self, "tip_former") and self.tip_former:
+                gcmd.respond_info(f"Formacion estado: {self.tip_former.get_status()}")
+            else:
+                gcmd.respond_info("Modulo de formation no inicializado")
+        else:
+            gcmd.respond_info("Accion no soportada")
+
+    def cmd_DM_PURGE(self, gcmd: Any) -> None:
+        """Ejecutar purga."""
+        toolchange_count = gcmd.get_int("TOOLCHANGE_COUNT", 0)
+        if hasattr(self, "purge_manager") and self.purge_manager:
+            result = self.purge_manager.calculate_volume(toolchange_count)
+            gcmd.respond_info(f"Purga: {result.message} Volumen: {result.volume_mm3} mm³")
+        else:
+            gcmd.respond_info("Modulo de purga no inicializado")
+
     def _emit_callback(self, callback_name: str, **kwargs: Any) -> None:
         """Invoca un callback de macro de ciclo de vida."""
         # Registrar el evento para que las macros lo puedan suscribir
         self.diagnostics.log_event("debug", "callback", callback_name, **kwargs)
 
-    def _endless_groups(self) -> List[List[int]]:
-        return [list(range(self.profile.gates))] if self.profile.has_capability("endless_spool") else []
+
+def _endless_groups(self) -> List[List[int]]:
 
     def _init_endless_groups(self) -> List[List[int]]:
         """Inicializa los grupos de endless spool desde la configuración."""

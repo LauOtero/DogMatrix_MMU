@@ -66,6 +66,12 @@ class SensorManager:
         self.channels: Dict[str, _SensorChannel] = {}
         self.event_count = 0
         self._build_channels(config, profile)
+        # Inicializar buffer de sync-feedback si está configurado
+        self.sync_feedback = self._init_sync_feedback(config, profile)
+
+    def _init_sync_feedback(self, config: Any, profile: Any) -> Optional[Dict[str, Any]]:
+        """Inicializa el buffer de sync-feedback para detección de enredos."""
+        
 
     def _build_channels(self, config: Any, profile: Any) -> None:
         self.channels["toolhead"] = _SensorChannel("toolhead", DEFAULT_DEBOUNCE_MS)
@@ -146,7 +152,27 @@ class SensorManager:
                         callback(reading)
                     except Exception:  # noqa: BLE001 - aislar fallos de callback
                         continue
+        # Poll sync-feedback buffer si está configurado
+        if self.sync_feedback is not None:
+            self._poll_sync_feedback()
         return readings
+
+    def _poll_sync_feedback(self) -> None:
+        """Actualiza el buffer de sync-feedback y detecta tangles/clogs."""
+        feedback = self.sync_feedback
+        feedback["consecutive_violations"] = 0  # Reset cada poll, se incrementa en evaluate
+        # TODO: En implementación real, aquí se leerían sensores de compresión/tensión
+        # y se compararía contra los thresholds configurados
+        # Por ahora, el módulo FlowGuard evaluará la divergencia y actualizará este buffer
+
+    def get_sync_feedback_status(self) -> Dict[str, Any]:
+        """Devuelve el estado actual del buffer de sync-feedback."""
+        if self.sync_feedback is None:
+            return {"enabled": False}
+        feedback = dict(self.sync_feedback)
+        feedback["enabled"] = True
+        return feedback
+
 
     def start_polling(self) -> None:
         """Habilitado el modo de lectura (llamado en klippy:ready)."""

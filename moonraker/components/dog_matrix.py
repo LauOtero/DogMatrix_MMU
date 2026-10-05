@@ -48,6 +48,38 @@ class DogMatrixComponent:
         self.server.register_endpoint(
             "/server/dog_matrix/recover", ["POST"], self.handle_recover
         )
+        self.server.register_endpoint(
+            "/server/dog_matrix/preprocess", ["POST"], self.handle_preprocess
+        )
+
+    async def handle_preprocess(self, web_request: Any) -> Dict[str, Any]:
+        """Preprocesador de G-code para extraer metadatos de herramientas."""
+        try:
+            # Intentar obtener el archivo subido
+            file_id = web_request.get_argument("file_id", None)
+            if file_id is None:
+                return {"ok": False, "error": "No se proporcionó file_id"}
+            
+            # Obtener estado de la impresora para acceder al archivo
+            klippy_apis = self.server.lookup_component("klippy_apis")
+            if klippy_apis is None:
+                return {"ok": False, "error": "Klippy APIs no disponibles"}
+            
+            # Intentar leer el archivo configurado
+            # En un implementación completa, aquí se parsearía el G-code
+            # para extraer !referenced_tools!, colores, temperaturas, etc.
+            
+            # Por ahora, devolvemos estructura básica
+            return {
+                "ok": True,
+                "referenced_tools": [],
+                "total_toolchanges": 0,
+                "colors": [],
+                "temperatures": []
+            }
+        except Exception as exc:
+            logging.debug("dog_matrix: preprocess fallo: %s", exc)
+            return {"ok": False, "error": str(exc)}
 
     def register_notifications(self) -> None:
         self.server.register_notification(NOTIFICATION)

@@ -178,6 +178,19 @@ class SpoolManager:
         )
         return response is not None
 
+    def notify_toolchange(self, gate: int, spool_id: int, printer_name: str = "") -> bool:
+        """Notificar a Spoolman sobre un cambio de herramienta."""
+        if self.breaker.is_open:
+            return False
+        payload = {
+            "printer_name": printer_name,
+            "gate": gate,
+            "spool_id": spool_id,
+            "action": "toolchange",
+        }
+        response = self._request("v1/toolchange", method="POST", payload=payload)
+        return response is not None
+
     def handle_nfc_tag(self, uid: str) -> Optional[Spool]:
         """Reconcilia un tag NFC con el inventario (DM-NFC-001)."""
         for spool in self._cache.values():
