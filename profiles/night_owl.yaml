@@ -1,0 +1,44 @@
+# Dog Matrix MMU - Perfil Night Owl
+# Topología gear-per-gate, 8 gates.
+schema_version: 1
+profile_id: dog_matrix.night_owl.v1
+display_name: Night Owl
+topology:
+  type: gear_per_gate
+  gates: 8
+  units: 1
+capabilities:
+  selector: false
+  encoder: true
+  gate_sensors: true
+  toolhead_sensor: true
+  sync_feedback: false
+  endless_spool: true
+  spoolman: true
+  nfc: false
+  led: true
+  cutter: false
+  servo: false
+  espooler: false
+limits:
+  max_load_speed_mm_s: 80
+  max_unload_speed_mm_s: 100
+  max_distance_mm: 1500
+  max_accel_mm_s2: 2000
+  max_jerk_mm_s3: 10000
+  sensor_timeout_ms: 500
+  encoder_error_mm: 5
+  bowden_length_mm: 600
+  toolhead_distance_mm: 80
+hardware:
+  mcu:
+    - name: mmu_main
+      transport: usb
+      serial_by_id: "/dev/serial/by-id/usb-DogMatrix_MMU-main-if00"
+  led:
+    type: neopixel
+    count: 8
+    pin: main:PA0
+  nfc:
+    type: none
+    bus: none

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Entorno de dependencias local (solo para pruebas en sandbox)
+.dm_pylibs/
+
+# Artefactos de Dog Matrix
+config/generated/*.cfg
+config/generated/*.json
+*.dm_snapshot
+evidence/*.zip

@@ -1,0 +1,270 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "dog_matrix.profile.schema.v1.json",
+    "title": "Dog Matrix MMU profile",
+    "description": "Esquema de perfil de hardware versionado (schema_version=1).",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "schema_version",
+        "profile_id",
+        "topology",
+        "capabilities",
+        "limits"
+    ],
+    "properties": {
+        "schema_version": {
+            "type": "integer",
+            "const": 1
+        },
+        "profile_id": {
+            "type": "string",
+            "pattern": "^dog_matrix\\.[a-z0-9_]+\\.v\\d+$"
+        },
+        "display_name": {
+            "type": "string"
+        },
+        "generated_by": {
+            "type": "string"
+        },
+        "generated_at": {
+            "type": "string"
+        },
+        "klipper_version": {
+            "type": "string"
+        },
+        "moonraker_version": {
+            "type": "string"
+        },
+        "configuration_hash": {
+            "type": "string"
+        },
+        "topology": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "gates"
+            ],
+            "properties": {
+                "type": {
+                    "enum": [
+                        "gear_per_gate",
+                        "selector",
+                        "modular",
+                        "hybrid",
+                        "virtual"
+                    ]
+                },
+                "gates": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 64
+                },
+                "units": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 16
+                },
+                "selector_type": {
+                    "enum": [
+                        "linear",
+                        "rotary",
+                        "virtual"
+                    ]
+                },
+                "gate_pitch_mm": {
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
+        "capabilities": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "selector": {
+                    "type": "boolean"
+                },
+                "encoder": {
+                    "type": "boolean"
+                },
+                "gate_sensors": {
+                    "type": "boolean"
+                },
+                "toolhead_sensor": {
+                    "type": "boolean"
+                },
+                "sync_feedback": {
+                    "type": "boolean"
+                },
+                "endless_spool": {
+                    "type": "boolean"
+                },
+                "spoolman": {
+                    "type": "boolean"
+                },
+                "nfc": {
+                    "type": "boolean"
+                },
+                "led": {
+                    "type": "boolean"
+                },
+                "cutter": {
+                    "type": "boolean"
+                },
+                "servo": {
+                    "type": "boolean"
+                },
+                "espooler": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "limits": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "max_load_speed_mm_s",
+                "max_unload_speed_mm_s",
+                "max_distance_mm"
+            ],
+            "properties": {
+                "max_load_speed_mm_s": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500
+                },
+                "max_unload_speed_mm_s": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 500
+                },
+                "max_distance_mm": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 5000
+                },
+                "max_accel_mm_s2": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                },
+                "max_jerk_mm_s3": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "sensor_timeout_ms": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                },
+                "encoder_error_mm": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "encoder_resolution": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                },
+                "bowden_length_mm": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "toolhead_distance_mm": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "purge_length_mm": {
+                    "type": "number",
+                    "minimum": 0
+                },
+                "tip_form_length_mm": {
+                    "type": "number",
+                    "minimum": 0
+                }
+            }
+        },
+        "hardware": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "mcu": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "transport"
+                        ],
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "transport": {
+                                "enum": [
+                                    "usb",
+                                    "can",
+                                    "uart",
+                                    "virtual"
+                                ]
+                            },
+                            "serial_by_id": {
+                                "type": "string"
+                            },
+                            "canbus_uuid": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "led": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "enum": [
+                                "neopixel",
+                                "sk6812",
+                                "dotstar",
+                                "none"
+                            ]
+                        },
+                        "count": {
+                            "type": "integer",
+                            "minimum": 0
+                        },
+                        "pin": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "nfc": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "enum": [
+                                "pn532",
+                                "pn5180",
+                                "pn7160",
+                                "rc522",
+                                "none"
+                            ]
+                        },
+                        "bus": {
+                            "enum": [
+                                "i2c",
+                                "spi",
+                                "uart",
+                                "none"
+                            ]
+                        },
+                        "address": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

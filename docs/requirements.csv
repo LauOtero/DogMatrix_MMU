@@ -1,0 +1,45 @@
+id,category,description,source,priority,verification_method,acceptance_criteria,status,owner
+DM-CFG-001,configuracion,Perfil con version de esquema,GAP-CFG-01,Must,Test de esquema,Perfil rechazado si schema_version != 1,Implemented,dog-matrix
+DM-CFG-002,configuracion,Backup/snapshot antes de modificar,Plan maestro,Must,Test de rollback,Snapshot creado antes de cualquier escritura,Implemented,dog-matrix
+DM-CFG-003,configuracion,Deteccion de conflictos de pines,GAP-CFG-02,Must,Test unitario,validate_pin_conflicts detecta pines duplicados,Implemented,dog-matrix
+DM-CFG-004,configuracion,Generacion determinista de configuracion,Diseno,Must,Test de hash,Misma entrada produce identico SHA-256,Implemented,dog-matrix
+DM-CFG-005,configuracion,Perfiles de hardware validados (7),Fase H1,Must,Test de carga,Todos los perfiles cargan y validan,Implemented,dog-matrix
+DM-CFG-006,configuracion,Validacion de rangos fisicos,Diseno,Should,Test unitario,Velocidades y distancias positivas verificadas,Implemented,dog-matrix
+DM-UI-001,usabilidad,Estado consultable sin bloqueo,GAP-UI-04,Must,Test de integracion,get_status responde sin bloquear,Implemented,dog-matrix
+DM-UI-002,usabilidad,Alias MMU_* compatibles con Happy Hare,H1,Should,Test unitario,MMU_CHANGE_TOOL y MMU_STATUS registrados,Implemented,dog-matrix
+DM-UI-003,usabilidad,Paneles KlipperScreen (MVP),H11,Should,Test de presenter,Modelos de vista generados sin pantalla,Implemented,dog-matrix
+DM-SAFE-001,seguridad,No reenviar toolchange ambiguo,Plan maestro,Must,Inyeccion de fallo,Recovery no reenvia ante duda,Implemented,dog-matrix
+DM-SAFE-002,seguridad,Recuperacion por fase,Diseno,Should,Inyeccion de fallo,Accion correcta segun codigo de error,Implemented,dog-matrix
+DM-SAFE-003,seguridad,Timeout por fase de toolchange,Diseno,Should,Test unitario,ERR_PHASE_TIMEOUT emitido al exceder,Implemented,dog-matrix
+DM-SAFE-004,seguridad,Politica de confirmacion en recuperacion,Diseno,Should,Test unitario,auto_recover controla confirmacion,Implemented,dog-matrix
+DM-SAFE-005,seguridad,WCET de deteccion y reaccion,GAP-SAFE-01,Must,Medicion HIL,WCET medido y documentado,Pending-HIL,dog-matrix
+DM-MMU-001,funcional,Deteccion de divergencia con histeresis,Diseno,Must,Test unitario,Error confirmado tras N violaciones,Implemented,dog-matrix
+DM-MMU-002,funcional,Clasificacion runout/clog/divergencia,Diseno,Should,Test unitario,Estados clasificados correctamente,Implemented,dog-matrix
+DM-MMU-003,funcional,Carga y descarga de filamento,Happy Hare,Must,Simulacion,Secuencia emite movimientos y valida,Implemented,dog-matrix
+DM-MMU-004,funcional,Selector lineal/rotativo/virtual,Happy Hare,Must,Test unitario,Estrategia elegida por perfil,Implemented,dog-matrix
+DM-MMU-005,funcional,Lectura de encoder con filtro IIR,Diseno,Should,Test unitario,Posicion filtrada y error mm,Implemented,dog-matrix
+DM-FSM-001,control,Toolchange idempotente,Diseno,Must,Test de FSM,operation_id y last_confirmed_step,Implemented,dog-matrix
+DM-FSM-002,control,Transiciones invalidas rechazadas,Diseno,Must,Test unitario,TransitionError en transicion no permitida,Implemented,dog-matrix
+DM-PERSIST-001,persistencia,Snapshot con checksum SHA-256,Diseno,Must,Test de integridad,Manipulacion detectada,Implemented,dog-matrix
+DM-PERSIST-002,persistencia,Escritura atomica,Diseno,Must,Test de resiliencia,Temporal + fsync + rename,Implemented,dog-matrix
+DM-DIAG-001,observabilidad,Log estructurado JSON Lines,Diseno,Should,Test de formato,Eventos serializados con campos,Implemented,dog-matrix
+DM-DIAG-002,observabilidad,Evidence bundle firmado,GAP-SAFE-05,Should,Test de firma,ZIP con manifest y HMAC,Implemented,dog-matrix
+DM-SPOOL-001,integracion,Circuit breaker en Spoolman,Diseno,Should,Test unitario,Disyuntor abre tras 3 fallos,Implemented,dog-matrix
+DM-SPOOL-002,integracion,Reconciliacion con Spoolman,Happy Hare,Should,Integracion,Asignacion gate-spool persistente,Partial,dog-matrix
+DM-NFC-001,integracion,Tag RFID requiere reconciliacion,Happy Hare,Should,Test de NFC,UID no reconciliada sin match,Implemented,dog-matrix
+DM-LED-001,integracion,LEDs reflejan estado real,Happy Hare,Should,Test visual,Color por estado FSM,Partial,dog-matrix
+DM-MIG-001,migracion,Preservar calibracion al migrar,H13,Must,Test de migracion,Bowden/toolhead/encoder preservados,Implemented,dog-matrix
+DM-MIG-002,migracion,Diff antes de aplicar,Diseno,Should,Test de migracion,dog_matrix_migration_diff.json generado,Implemented,dog-matrix
+DM-WIZ-001,despliegue,Despliegue de MMU < 5 min,H13,Should,Cronometro,Menos de 5 min end-to-end,Pending-HIL,dog-matrix
+DM-WIZ-002,despliegue,Rollback atomico ante fallo,H13,Must,Test,Estado anterior restaurado,Implemented,dog-matrix
+DM-WIZ-003,despliegue,Modo dry-run,H13,Should,Test,No escribe en disco,Implemented,dog-matrix
+DM-WIZ-004,despliegue,Modo headless,H13,Should,Test,Despliegue desatendido funciona,Implemented,dog-matrix
+DM-PERF-001,rendimiento,get_status < 5 ms,Diseno,Should,Benchmark,p99 < 5 ms,Pending-HIL,dog-matrix
+DM-PERF-002,rendimiento,Jitter de movimiento < 50 us,Diseno,Should,HIL/analizador,Jitter medido y documentado,Pending-HIL,dog-matrix
+DM-PERF-003,rendimiento,Deteccion FlowGuard < 50 us P99,Diseno,Could,Benchmark CFFI,Latencia medida,Pending-HIL,dog-matrix
+DM-PERF-004,rendimiento,Aceleracion nativa CFFI disponible,Diseno,Should,Build + doctor,_dm_native compila y carga,Implemented,dog-matrix
+DM-COV-001,calidad,Cobertura de pruebas >= 90%,KPI,Should,coverage,Cobertura medida,Pending,dog-matrix
+DM-DOC-001,documentacion,Documentacion operativa,13.7,Should,Revision,INSTALL/CONFIG/API/SAFETY/TROUBLESHOOTING/PROFILES presentes,Implemented,dog-matrix
+DM-VER-001,verificacion,Perfil de hardware validado HIL,M4,Must,Campana HIL,Toolchange >= 99% en banco,Pending-HIL,dog-matrix
+DM-VER-002,verificacion,Auditoria de conformidad,M4,Must,Revision,Checklist aprobado,Pending,dog-matrix
+DM-VER-003,verificacion,Evidence bundle de release,M4,Must,Generacion,Bundle firmado archivado,Pending,dog-matrix

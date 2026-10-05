@@ -1,0 +1,38 @@
+# Dog Matrix MMU - macros G-code.
+# Generado por dog-matrix-installer ${version} (perfil ${display_name}).
+
+[gcode_macro DM_STATUS]
+description: Mostrar estado del MMU Dog Matrix
+gcode:
+  DM_STATUS
+
+[gcode_macro DM_CHANGE]
+description: Cambiar de herramienta
+gcode:
+  {% set tool = params.TOOL|default(0)|int %}
+  DM_CHANGE TOOL={tool}
+
+[gcode_macro DM_LOAD]
+description: Cargar filamento del gate activo
+gcode:
+  DM_LOAD
+
+[gcode_macro DM_UNLOAD]
+description: Descargar filamento
+gcode:
+  DM_UNLOAD
+
+[gcode_macro DM_HOME]
+description: Homing del selector
+gcode:
+  DM_HOME
+
+[gcode_macro DM_RECOVER]
+description: Recuperacion tras fallo
+gcode:
+  DM_RECOVER
+
+[gcode_macro DM_REMAP_TTG]
+description: Remapear tool-to-gate
+gcode:
+  {action_respond_info("Use: DM_REMAP_TTG TOOL=<t> GATE=<g>")}

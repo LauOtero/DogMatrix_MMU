@@ -1,0 +1,224 @@
+# Dog Matrix MMU - Matriz de compatibilidad
+# Documento: DOC-COMPATIBILITY · Version del formato: 1
+#
+# Estado de cada entrada:
+#   profile-validated : el perfil existe y valida contra profiles/schema.json
+#   designed          : soporte diseñado, sin perfil entregado todavia
+#   hil-pending       : pendiente de validacion hardware-in-the-loop
+#
+# NOTA: ninguna familia se considera "validated" hasta completar la campana HIL.
+
+schema: dog_matrix.compatibility.v1
+dog_matrix_version: "0.1.0"
+
+software:
+  python:
+    min: "3.8"
+    tested: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+  klipper:
+    min: "0.10.0"
+    tested: ["0.12.0"]
+    status: hil-pending
+  moonraker:
+    min: "0.7.0"
+    tested: ["0.9.0"]
+    status: hil-pending
+  os:
+    - id: debian
+      display_name: Debian / Raspberry Pi OS
+    - id: ubuntu
+      display_name: Ubuntu
+
+interfaces:
+  mainsail:
+    status: designed
+    notes: Consumo de estado via objetos dog_matrix.*
+  fluidd:
+    status: designed
+    notes: Consumo de estado via objetos dog_matrix.*
+  klipperscreen:
+    status: implemented-mvp
+    notes: Presenter KlipperScreenMMUPanel (headless probado)
+  spoolman:
+    status: implemented
+    transport: moonraker
+  slicers:
+    status: designed
+    notes: PrusaSlicer, OrcaSlicer, SuperSlicer, Cura (via macros T0-Tn)
+
+hardware_families:
+  - id: box_turtle
+    display_name: Box Turtle
+    profile: box_turtle
+    profile_id: dog_matrix.box_turtle.v1
+    phase: H1
+    topology: gear_per_gate
+    selector_type: virtual
+    gates: 8
+    status: profile-validated
+    capabilities: [encoder, gate_sensors, toolhead_sensor, endless_spool, spoolman, led]
+  - id: ercf
+    display_name: ERCF 1.1/2.0
+    profile: ercf
+    profile_id: dog_matrix.ercf.v1
+    phase: H1
+    topology: selector
+    selector_type: linear
+    gates: 6
+    status: profile-validated
+    capabilities: [selector, encoder, gate_sensors, toolhead_sensor, sync_feedback, endless_spool, spoolman, led, cutter, servo]
+  - id: tradrack
+    display_name: Tradrack
+    profile: tradrack
+    profile_id: dog_matrix.tradrack.v1
+    phase: H1
+    topology: selector
+    selector_type: rotary
+    gates: 8
+    status: profile-validated
+    capabilities: [selector, encoder, gate_sensors, toolhead_sensor, endless_spool, spoolman, led, servo]
+  - id: night_owl
+    display_name: Night Owl
+    profile: night_owl
+    profile_id: dog_matrix.night_owl.v1
+    phase: H1
+    topology: gear_per_gate
+    selector_type: virtual
+    gates: 8
+    status: profile-validated
+    capabilities: [encoder, gate_sensors, toolhead_sensor, endless_spool, spoolman, led]
+  - id: emu
+    display_name: EMU
+    profile: emu
+    profile_id: dog_matrix.emu.v1
+    phase: H5
+    topology: modular
+    selector_type: virtual
+    gates: 8
+    units: 2
+    status: profile-validated
+    capabilities: [encoder, gate_sensors, toolhead_sensor, endless_spool, spoolman, nfc, led, espooler]
+  - id: quattrobox
+    display_name: QuattroBox
+    profile: quattrobox
+    profile_id: dog_matrix.quattrobox.v1
+    phase: H5
+    topology: gear_per_gate
+    selector_type: virtual
+    gates: 4
+    status: profile-validated
+    capabilities: [encoder, gate_sensors, spoolman, led]
+  - id: custom
+    display_name: Custom
+    profile: custom.example
+    profile_id: dog_matrix.custom.v1
+    phase: H5
+    topology: gear_per_gate
+    selector_type: virtual
+    gates: 4
+    status: profile-template
+    capabilities: [encoder, gate_sensors, toolhead_sensor]
+  - id: angry_beaver
+    display_name: Angry Beaver
+    profile: null
+    phase: H5
+    topology: selector
+    selector_type: linear
+    gates: 6
+    status: designed
+  - id: 3ms
+    display_name: 3MS
+    profile: null
+    phase: H5
+    topology: modular
+    gates: 8
+    status: designed
+  - id: 3d_chameleon
+    display_name: 3D Chameleon
+    profile: null
+    phase: H5
+    topology: gear_per_gate
+    gates: 4
+    status: designed
+  - id: picommu
+    display_name: PicoMMU
+    profile: null
+    phase: H5
+    topology: gear_per_gate
+    gates: 4
+    status: designed
+  - id: mmx
+    display_name: MMX
+    profile: null
+    phase: H5
+    topology: hybrid
+    gates: 8
+    status: designed
+  - id: vvd
+    display_name: VVD
+    profile: null
+    phase: H5
+    topology: hybrid
+    gates: 8
+    status: designed
+  - id: kms
+    display_name: KMS
+    profile: null
+    phase: H5
+    topology: hybrid
+    gates: 8
+    status: designed
+
+sensors:
+  - id: microswitch
+    status: implemented
+  - id: optical
+    status: implemented
+  - id: hall
+    status: implemented
+  - id: proportional
+    status: designed
+    notes: sync-feedback proporcional (fase 2)
+
+readers:
+  - id: pn532
+    bus: i2c
+    status: implemented
+  - id: pn5180
+    bus: spi
+    status: implemented
+  - id: pn7160
+    bus: i2c
+    status: implemented
+  - id: rc522
+    bus: spi
+    status: implemented
+
+led_types:
+  - id: neopixel
+    status: implemented
+  - id: sk6812
+    status: implemented
+  - id: dotstar
+    status: designed
+
+feature_matrix:
+  toolchange: implemented
+  ttg_map: implemented
+  flowguard: implemented
+  endless_spool: partial
+  spoolman: implemented
+  nfc_rfid: implemented
+  led_system: partial
+  klipperscreen: implemented-mvp
+  mainsail: designed
+  fluidd: designed
+  guided_calibration: implemented
+  adaptive_purge: designed
+  tip_forming: designed
+  gear_extruder_sync: designed
+  atomic_rollback: implemented
+  evidence_bundle: implemented
+  versioned_profiles: implemented
+  cffi_native: implemented
+  predictive_detection: designed
